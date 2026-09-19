@@ -1,0 +1,12 @@
+# Railway deployment config. Railway auto-detects Python via Nixpacks and
+# would pick up the Procfile anyway — this just makes the intent explicit
+# and pins the health check so Railway knows the app is actually up.
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120"
+healthcheckPath = "/auth/login"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
