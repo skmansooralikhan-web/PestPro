@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Log Complaint{% endblock %}
+{% block page_title %}Log Complaint{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:560px;">
+  <form method="POST" class="stack">
+    <div class="form-grid">
+      <div class="field span-2">
+        <label>Client *</label>
+        <select name="client_id" required>
+          <option value="">— Select client —</option>
+          {% for c in clients %}
+          <option value="{{ c['id'] }}" {{ 'selected' if preselect_client==c['id'] }}>{{ c['name'] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Complaint type</label>
+        <select name="complaint_type">
+          {% for t in types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Reported date</label>
+        <input type="date" name="reported_date">
+      </div>
+      <div class="field span-2">
+        <label>Assign to</label>
+        <select name="assigned_to">
+          <option value="">— Unassigned —</option>
+          {% for t in techs %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Description *</label>
+      <textarea name="description" required></textarea>
+    </div>
+    <div class="row">
+      <button type="submit" class="btn btn-primary"><i class="ti ti-check"></i> Log Complaint</button>
+      <a href="{{ url_for('complaints_bp.index') }}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

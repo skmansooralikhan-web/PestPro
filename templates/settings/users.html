@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Users{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+<div class="tabs">
+  <a href="{{ url_for('settings_bp.index') }}">Company</a>
+  <a class="active" href="#">Users</a>
+  <a href="{{ url_for('settings_bp.audit_log') }}">Audit Log</a>
+  <a href="{{ url_for('settings_bp.backup') }}">Backup</a>
+</div>
+
+<div class="row" style="margin-bottom:14px;">
+  <a href="{{ url_for('settings_bp.new_user') }}" class="btn btn-primary"><i class="ti ti-user-plus"></i> New User</a>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Username</th><th>Full Name</th><th>Role</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for u in users %}
+      <tr>
+        <td class="mono">{{ u['username'] }}</td>
+        <td>{{ u['full_name'] or '—' }}</td>
+        <td><span class="badge badge-blue">{{ u['role'] }}</span></td>
+        <td>{% if u['disabled'] %}<span class="badge badge-red">Disabled</span>{% else %}<span class="badge badge-green">Active</span>{% endif %}</td>
+        <td class="row wrap">
+          <button type="button" class="btn btn-ghost btn-sm" data-modal-open="reset-{{ u['id'] }}">Reset PW</button>
+          {% if u['role'] == 'technician' %}
+          <button type="button" class="btn btn-ghost btn-sm" data-modal-open="phone-{{ u['id'] }}"><i class="ti ti-device-mobile"></i> {{ 'Update' if u['pin_hash'] else 'Set up' }} phone login</button>
+          {% endif %}
+          <form method="POST" action="{{ url_for('settings_bp.toggle_disabled', user_id=u['id']) }}">
+            <button type="submit" class="btn btn-ghost btn-sm">{{ 'Enable' if u['disabled'] else 'Disable' }}</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% for u in users %}
+<div class="modal-overlay" id="reset-{{ u['id'] }}">
+  <div class="modal-box" style="max-width:380px;">
+    <div class="modal-head"><strong>Reset password — {{ u['username'] }}</strong><button data-modal-close class="btn btn-icon btn-ghost btn-sm"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <form method="POST" action="{{ url_for('settings_bp.reset_password', user_id=u['id']) }}" class="stack">
+        <div class="field"><label>New password</label><input type="password" name="new_password" minlength="8" required></div>
+        <button type="submit" class="btn btn-primary">Reset Password</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% if u['role'] == 'technician' %}
+<div class="modal-overlay" id="phone-{{ u['id'] }}">
+  <div class="modal-box" style="max-width:380px;">
+    <div class="modal-head"><strong>Phone login — {{ u['username'] }}</strong><button data-modal-close class="btn btn-icon btn-ghost btn-sm"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <p class="muted" style="font-size:12px;margin-bottom:14px;">
+        Lets {{ u['full_name'] or u['username'] }} sign in on their phone by tapping
+        their photo and entering a 4-digit PIN — no typing a username or
+        password. Good for anyone not comfortable with a phone keyboard.
+      </p>
+      <form method="POST" action="{{ url_for('settings_bp.set_phone_login', user_id=u['id']) }}" enctype="multipart/form-data" class="stack">
+        <div class="field">
+          <label>Photo (so they recognize themselves in the list)</label>
+          <input type="file" name="photo" accept="image/png,image/jpeg">
+          {% if u['photo'] %}<span class="muted" style="font-size:11px;">A photo is already set — choose a new one only to replace it.</span>{% endif %}
+        </div>
+        <div class="field">
+          <label>4-digit PIN</label>
+          <input type="text" name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" minlength="4" required placeholder="e.g. 4821">
+          <span class="hint">They'll enter this by tapping a number pad, not typing it — any 4 digits work.</span>
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="ti ti-device-mobile"></i> {{ 'Update' if u['pin_hash'] else 'Set Up' }} Phone Login</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endfor %}
+{% endblock %}

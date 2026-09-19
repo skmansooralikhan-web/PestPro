@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Import Clients{% endblock %}
+{% block page_title %}Bulk Import Clients{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:560px;">
+  <p class="muted" style="font-size:12.5px;margin-bottom:14px;">
+    Upload a CSV or Excel (.xlsx) file to add many clients at once.
+    Each row needs at least a <strong>name</strong> and <strong>phone</strong>;
+    everything else is optional. Services should be comma-separated within
+    the cell (e.g. "General Pest Control, Rodent Control").
+  </p>
+  <a href="{{ url_for('clients_bp.import_template') }}" class="btn btn-ghost btn-sm" style="margin-bottom:16px;">
+    <i class="ti ti-file-download"></i> Download CSV template
+  </a>
+  <form method="POST" enctype="multipart/form-data" class="stack">
+    <div class="field">
+      <label>File</label>
+      <input type="file" name="file" accept=".csv,.xlsx" required>
+    </div>
+    <div class="row">
+      <button type="submit" class="btn btn-primary"><i class="ti ti-upload"></i> Import Clients</button>
+      <a href="{{ url_for('clients_bp.index') }}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

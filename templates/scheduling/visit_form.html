@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit Visit' if visit else 'Schedule Visit' }}{% endblock %}
+{% block page_title %}{{ 'Edit Visit' if visit else 'Schedule Visit' }}{% endblock %}
+
+{% block content %}
+<div class="grid-2" style="grid-template-columns: 1fr 320px; align-items:start;">
+  <div class="card">
+    <form method="POST">
+      <div class="form-grid">
+        <div class="field span-2">
+          <label>Client *</label>
+          <select name="client_id" id="clientSelect" required {{ 'disabled' if visit }} onchange="onClientChange()">
+            <option value="">— Select client —</option>
+            {% for c in clients %}
+            <option value="{{ c['id'] }}" {{ 'selected' if preselect_client==c['id'] }}>{{ c['name'] }} ({{ c['area'] or 'no area' }})</option>
+            {% endfor %}
+          </select>
+          {% if visit %}<input type="hidden" name="client_id" value="{{ visit['client_id'] }}">{% endif %}
+        </div>
+        <div class="field">
+          <label>Site (optional)</label>
+          <select name="site_id" id="siteSelect">
+            <option value="">Main site</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Date *</label>
+          <input type="date" name="scheduled_date" required value="{{ default_date }}">
+        </div>
+        <div class="field">
+          <label>Time slot</label>
+          <input type="time" name="time_slot" value="{{ visit['time_slot'] if visit else '' }}">
+        </div>
+        <div class="field">
+          <label>Duration (minutes)</label>
+          <input type="number" name="duration_minutes" min="15" step="15"
+                 value="{{ visit['duration_minutes'] if visit and visit['duration_minutes'] else 60 }}">
+          <span class="hint">Used to catch back-to-back overbooking for the same technician.</span>
+        </div>
+        <div class="field">
+          <label>Technician</label>
+          <select name="tech_name" id="techSelect">
+            <option value="">— Unassigned —</option>
+            {% for t in techs %}
+            <option value="{{ t }}" {{ 'selected' if visit and visit['tech_name']==t }}>{{ t }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% if not visit %}
+        <div class="field">
+          <label>&nbsp;</label>
+          <div class="checkbox-row">
+            <input type="checkbox" name="is_revisit" id="is_revisit">
+            <label for="is_revisit">This is a complaint re-visit (doesn't count against quota)</label>
+          </div>
+        </div>
+        {% else %}
+        <div class="field">
+          <label>Status</label>
+          <select name="status">
+            {% for s in ['Scheduled','In Progress','Completed','Cancelled','Rescheduled'] %}
+            <option value="{{ s }}" {{ 'selected' if visit['status']==s }}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="field" style="margin-top:12px;">
+        <label>Service &amp; type of service *</label>
+        <div class="chip-group" id="serviceChips">
+          {% for s in services_catalog %}
+          <label class="chip">
+            <input type="checkbox" name="services" value="{{ s }}">{{ s }}
+          </label>
+          {% endfor %}
+        </div>
+        <span class="hint">Pick every service this visit covers — general pest control,
+          a specific pest (cockroach, termite, rodent…), fogging, etc. Contracted
+          services get pre-checked once you pick a client, but you can add or
+          remove any of them for this particular visit.</span>
+      </div>
+
+      <div class="field" style="margin-top:12px;">
+        <label>Visit notes</label>
+        <textarea name="visit_notes">{{ visit['visit_notes'] if visit else '' }}</textarea>
+      </div>
+
+      <div id="conflictWarning" class="alert-banner danger" style="display:none;margin-top:12px;"></div>
+
+      <div class="row" style="margin-top:16px;">
+        <button type="submit" class="btn btn-primary"><i class="ti ti-check"></i> {{ 'Save Changes' if visit else 'Schedule Visit' }}</button>
+        <a href="{{ url_for('scheduling_bp.week_view') }}" class="btn btn-ghost">Cancel</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="card" id="clientContext">
+    <div class="card-header"><h3>Client Snapshot</h3></div>
+    <p class="muted" style="font-size:12.5px;">Select a client to see their visit history, contracted services, and previous operators here.</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const visitServices = {{ (visit_services if visit_services is defined else [])|tojson }};
+
+function setCheckedServices(list) {
+  document.querySelectorAll('#serviceChips .chip').forEach(chip => {
+    const input = chip.querySelector('input');
+    input.checked = list.includes(input.value);
+    chip.classList.toggle('checked', input.checked);
+  });
+}
+
+function renderClientContext(data) {
+  const el = document.getElementById('clientContext');
+  const lastVisitsHtml = data.last_visits.map(v =>
+    `<div style="padding:5px 0;border-bottom:1px solid var(--border);font-size:11.5px;">
+       <strong>${v.date}</strong> — ${v.services.join(', ') || 'no services logged'}<br>
+       <span class="muted">${v.tech || 'unassigned'} · ${v.status}</span>
+     </div>`).join('') || '<span class="muted" style="font-size:12px;">No visits yet.</span>';
+
+  el.innerHTML = `
+    <div class="card-header"><h3>Client Snapshot</h3></div>
+    ${data.total ? `
+    <div class="notes-box" style="margin-bottom:12px;background:var(--accent-dim);border-color:var(--accent);color:var(--accent-hover);">
+      <strong>${data.assigned} of ${data.total} visits assigned</strong>
+      ${data.assigned > data.total ? ' (past contracted count)' : ''}
+    </div>` : ''}
+    <div class="grid-3" style="margin-bottom:10px;">
+      <div><div class="muted" style="font-size:10.5px;">ASSIGNED</div><strong>${data.assigned}</strong></div>
+      <div><div class="muted" style="font-size:10.5px;">DONE</div><strong>${data.completed}</strong></div>
+      <div><div class="muted" style="font-size:10.5px;">LEFT</div><strong>${data.total ? data.remaining : '—'}</strong></div>
+    </div>
+    <div style="font-size:11.5px;margin-bottom:8px;">
+      <strong>Previous operators:</strong> ${data.operators.join(', ') || 'none yet'}
+    </div>
+    <div style="font-size:11.5px;margin-bottom:4px;"><strong>Pending services:</strong> ${data.pending_services.join(', ') || 'all contracted services delivered'}</div>
+    <div class="divider"></div>
+    <div style="font-size:11.5px;font-weight:700;margin-bottom:4px;">Last 3 visits</div>
+    ${lastVisitsHtml}
+  `;
+}
+
+function onClientChange() {
+  const id = document.getElementById('clientSelect').value;
+  if (!id) return;
+  fetch('/clients/' + id + '/stats.json').then(r => r.json()).then(data => {
+    setCheckedServices(data.contracted_services);
+    renderClientContext(data);
+    // Auto-fill technician + preselect if not already chosen
+    const techSelect = document.getElementById('techSelect');
+    if (!techSelect.value && data.assigned_tech) techSelect.value = data.assigned_tech;
+  });
+  fetch('/api/clients/' + id + '/sites').then(r => r.json()).then(sites => {
+    const sel = document.getElementById('siteSelect');
+    sel.innerHTML = '<option value="">Main site</option>' +
+      sites.map(s => `<option value="${s.id}">${s.site_name}</option>`).join('');
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (visitServices.length) setCheckedServices(visitServices);
+  const initial = document.getElementById('clientSelect').value;
+  if (initial && !visitServices.length) onClientChange();
+  else if (initial) {
+    // Editing an existing visit — still refresh the snapshot panel, but
+    // don't let it override the services already saved on this visit.
+    fetch('/clients/' + initial + '/stats.json').then(r => r.json()).then(renderClientContext);
+    fetch('/api/clients/' + initial + '/sites').then(r => r.json()).then(sites => {
+      const sel = document.getElementById('siteSelect');
+      sel.innerHTML = '<option value="">Main site</option>' +
+        sites.map(s => `<option value="${s.id}">${s.site_name}</option>`).join('');
+    });
+  }
+});
+</script>
+{% endblock %}

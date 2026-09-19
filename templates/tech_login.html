@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block guest_content %}
+<div class="login-wrap" style="align-items:flex-start;padding-top:60px;">
+  <div class="login-card" style="max-width:520px;">
+    <div class="login-logo">PC</div>
+    <h2 style="text-align:center;margin-bottom:4px;">{{ company.get('companyName','PCT CRM') }}</h2>
+    <p class="muted" style="text-align:center;font-size:15px;margin-bottom:26px;">Tap your photo</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, msg in messages %}
+          <div class="alert-banner {{ 'danger' if category=='error' else 'warn' }}">
+            <i class="ti ti-alert-triangle"></i><span>{{ msg }}</span>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% if technicians %}
+    <div class="tech-photo-grid">
+      {% for t in technicians %}
+      <a href="{{ url_for('auth_bp.tech_pin', user_id=t['id']) }}" class="tech-photo-tile">
+        {% if t['photo'] %}
+        <img src="{{ url_for('auth_bp.tech_photo', user_id=t['id']) }}" alt="">
+        {% else %}
+        <div class="tech-photo-initial">{{ (t['full_name'] or t['username'])[:1]|upper }}</div>
+        {% endif %}
+        <span>{{ t['full_name'] or t['username'] }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted" style="text-align:center;font-size:13px;padding:20px 0;">
+      No technician logins are set up yet. Ask an admin to add one in Settings → Users.
+    </p>
+    {% endif %}
+
+    <a href="{{ url_for('auth_bp.login') }}" class="muted" style="display:block;text-align:center;font-size:12px;margin-top:24px;">
+      Office staff sign in here
+    </a>
+  </div>
+</div>
+{% endblock %}

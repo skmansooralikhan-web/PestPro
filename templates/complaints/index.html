@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Complaints{% endblock %}
+{% block page_title %}Complaints{% endblock %}
+
+{% block content %}
+<div class="row between" style="margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+  <form method="GET">
+    <select name="status" onchange="this.form.submit()">
+      <option value="">All statuses</option>
+      {% for s in ['Open','In Progress','Resolved','Closed'] %}
+      <option value="{{ s }}" {{ 'selected' if status==s }}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </form>
+  {% if current_user.role != 'technician' %}
+  <a href="{{ url_for('complaints_bp.new') }}" class="btn btn-primary"><i class="ti ti-plus"></i> Log Complaint</a>
+  {% endif %}
+</div>
+
+<div class="stack">
+{% for c in complaints %}
+  <div class="card">
+    <div class="row between" style="margin-bottom:8px;">
+      <div>
+        <strong>{{ c['client_name'] }}</strong> — {{ c['complaint_type'] }}
+        <div class="muted" style="font-size:11.5px;">Reported {{ c['reported_date'] }}{% if c['assigned_to'] %} · Assigned to {{ c['assigned_to'] }}{% endif %}</div>
+      </div>
+      <span class="badge badge-{{ {'Open':'red','In Progress':'amber','Resolved':'green','Closed':'gray'}[c['status']] }}">{{ c['status'] }}</span>
+    </div>
+    <p style="font-size:13px;margin-bottom:10px;">{{ c['description'] }}</p>
+    {% if c['resolution'] %}<div class="notes-box" style="margin-bottom:10px;">Resolution: {{ c['resolution'] }}</div>{% endif %}
+    {% if c['status'] not in ['Resolved','Closed'] %}
+    <form method="POST" action="{{ url_for('complaints_bp.update', complaint_id=c['id']) }}" class="row wrap">
+      <select name="status">
+        {% for s in ['Open','In Progress','Resolved','Closed'] %}
+        <option value="{{ s }}" {{ 'selected' if c['status']==s }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+      <input type="text" name="resolution" placeholder="Resolution notes…" style="flex:1;min-width:180px;">
+      <button type="submit" class="btn btn-ghost btn-sm">Update</button>
+    </form>
+    {% endif %}
+  </div>
+{% else %}
+  <div class="card empty-state"><i class="ti ti-mood-smile"></i>No complaints on file.</div>
+{% endfor %}
+</div>
+{% endblock %}

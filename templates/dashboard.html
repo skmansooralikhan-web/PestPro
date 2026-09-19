@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="row between" style="margin-bottom:16px;">
+  <div></div>
+  <div class="row wrap">
+    <a href="{{ url_for('scheduling_bp.new_visit') }}" class="btn btn-primary"><i class="ti ti-calendar-plus"></i> New Visit</a>
+    <a href="{{ url_for('invoices_bp.new') }}" class="btn btn-ghost"><i class="ti ti-file-invoice"></i> New Invoice</a>
+    <a href="{{ url_for('clients_bp.new') }}" class="btn btn-ghost"><i class="ti ti-user-plus"></i> New Client</a>
+  </div>
+</div>
+
+{% if overdue_invoices or expiring_amc or low_stock_items or stale_visits %}
+<div class="alert-banner danger">
+  <i class="ti ti-alert-triangle"></i>
+  <span>
+    {% if overdue_invoices %}{{ overdue_invoices|length }} overdue invoice(s).{% endif %}
+    {% if expiring_amc %} {{ expiring_amc|length }} AMC contract(s) expiring within 30 days.{% endif %}
+    {% if low_stock_items %} {{ low_stock_items|length }} inventory item(s) below minimum stock.{% endif %}
+    {% if stale_visits %} {{ stale_visits|length }} visit(s) haven't had their status updated in over 24 hours.{% endif %}
+  </span>
+</div>
+{% endif %}
+
+<div class="kpi-row">
+  <div class="kpi-card">
+    <div class="kpi-label">Revenue this month</div>
+    <div class="kpi-value">₹{{ '{:,.0f}'.format(revenue_month) }}</div>
+  </div>
+  <div class="kpi-card warn">
+    <div class="kpi-label">Outstanding</div>
+    <div class="kpi-value">₹{{ '{:,.0f}'.format(outstanding) }}</div>
+  </div>
+  <div class="kpi-card info">
+    <div class="kpi-label">Visits today</div>
+    <div class="kpi-value">{{ visits_today_done }}/{{ visits_today_total }}</div>
+    <div class="kpi-sub">completed / scheduled</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Active clients</div>
+    <div class="kpi-value">{{ active_clients }}</div>
+  </div>
+  <div class="kpi-card danger">
+    <div class="kpi-label">Low stock alerts</div>
+    <div class="kpi-value">{{ low_stock_count }}</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">AMC due this month</div>
+    <div class="kpi-value">{{ amc_due_this_month }}</div>
+  </div>
+</div>
+
+<div class="grid-2" style="align-items:start;">
+  <div class="card">
+    <div class="card-header">
+      <h3>Today's Schedule</h3>
+      <a href="{{ url_for('scheduling_bp.week_view') }}" class="muted" style="font-size:12px;">View calendar →</a>
+    </div>
+    {% if todays_schedule %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Time</th><th>Client</th><th>Tech</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for v in todays_schedule %}
+          <tr onclick="location.href='{{ url_for('scheduling_bp.view_visit', visit_id=v['id']) }}'" style="cursor:pointer;">
+            <td>{{ v['time_slot'] or '—' }}</td>
+            <td><strong>{{ v['client_name'] }}</strong><br><span class="muted" style="font-size:11px;">{{ v['client_area'] or '' }}</span></td>
+            <td>{{ v['tech_name'] or '—' }}</td>
+            <td><span class="badge badge-{{ {'Scheduled':'amber','In Progress':'blue','Completed':'green','Cancelled':'gray','Rescheduled':'purple'}[v['status']] }}">{{ v['status'] }}</span></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state"><i class="ti ti-calendar-off"></i>No visits scheduled today.</div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h3>Revenue — Last 6 Months</h3></div>
+    <canvas id="revenueChart" height="180"></canvas>
+  </div>
+</div>
+
+<div class="grid-3" style="margin-top:16px;">
+  <div class="card">
+    <div class="card-header"><h3>Overdue Invoices</h3></div>
+    {% if overdue_invoices %}
+      {% for inv in overdue_invoices %}
+      <div class="row between" style="padding:7px 0;border-bottom:1px solid var(--border);">
+        <a href="{{ url_for('invoices_bp.detail', invoice_id=inv['id']) }}" style="font-size:12.5px;">
+          <strong>{{ inv['client_name'] }}</strong><br><span class="muted">{{ inv['inv_number'] }}</span>
+        </a>
+        <span class="text-danger mono" style="font-size:12.5px;font-weight:700;">₹{{ '{:,.0f}'.format(inv['balance_due']) }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="muted" style="font-size:12.5px;">Nothing overdue. 🎉</p>
+    {% endif %}
+  </div>
+  <div class="card">
+    <div class="card-header"><h3>AMC Expiring Soon</h3></div>
+    {% if expiring_amc %}
+      {% for a in expiring_amc %}
+      <div class="row between" style="padding:7px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:12.5px;"><strong>{{ a['client_name'] }}</strong><br><span class="muted">{{ a['contract_number'] }}</span></span>
+        <span class="badge badge-amber">{{ a['end_date'] }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="muted" style="font-size:12.5px;">No AMC renewals due within 30 days.</p>
+    {% endif %}
+  </div>
+  <div class="card">
+    <div class="card-header"><h3>Low Stock Items</h3></div>
+    {% if low_stock_items %}
+      {% for it in low_stock_items %}
+      <div class="row between" style="padding:7px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:12.5px;"><strong>{{ it['name'] }}</strong></span>
+        <span class="text-danger mono" style="font-size:12.5px;">{{ it['current_stock']|round(1) }} / {{ it['minimum_stock']|round(1) }} {{ it['unit'] }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="muted" style="font-size:12.5px;">All stock levels are healthy.</p>
+    {% endif %}
+  </div>
+</div>
+
+{% if stale_visits %}
+<div class="card" style="margin-top:16px;">
+  <div class="card-header">
+    <h3>Visits Needing a Status Check (24h+)</h3>
+    <span class="badge badge-red">{{ stale_visits|length }}</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Date</th><th>Client</th><th>Technician</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      {% for v in stale_visits %}
+        <tr onclick="location.href='{{ url_for('scheduling_bp.view_visit', visit_id=v['id']) }}'" style="cursor:pointer;">
+          <td>{{ v['scheduled_date'] }}</td>
+          <td>{{ v['client_name'] }}</td>
+          <td>{{ v['tech_name'] or 'Unassigned' }}</td>
+          <td><span class="badge badge-amber">{{ v['status'] }}</span></td>
+          <td><a href="{{ url_for('scheduling_bp.view_visit', visit_id=v['id']) }}" class="muted" style="font-size:11.5px;">Check →</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="{{ static_url('js/charts.js') }}"></script>
+<script>
+  renderRevenueChart('revenueChart', {{ revenue_chart|map(attribute='month')|list|tojson }}, {{ revenue_chart|map(attribute='amount')|list|tojson }});
+</script>
+{% endblock %}

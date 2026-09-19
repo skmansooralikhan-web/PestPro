@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Search{% endblock %}
+{% block page_title %}Search{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:760px;margin:0 auto;">
+  <form method="GET" action="{{ url_for('search_bp.index') }}" style="margin-bottom:18px;">
+    <input type="text" name="q" value="{{ q }}" autofocus placeholder="Search clients, invoices, AMC contracts, leads…" style="font-size:15px;padding:12px 14px;">
+  </form>
+
+  {% if q and q|length < 2 %}
+  <p class="muted" style="text-align:center;padding:20px;">Type at least 2 characters to search.</p>
+  {% elif q and total == 0 %}
+  <div class="empty-state"><i class="ti ti-search-off"></i>No matches for "{{ q }}".</div>
+  {% elif not q %}
+  <div class="empty-state"><i class="ti ti-search"></i>Search across clients, invoices, AMC contracts, and leads.</div>
+  {% else %}
+
+  {% if results.clients %}
+  <h4 style="font-size:13px;margin-bottom:8px;"><i class="ti ti-users"></i> Clients ({{ results.clients|length }})</h4>
+  <div class="stack" style="margin-bottom:20px;">
+    {% for c in results.clients %}
+    <a href="{{ url_for('clients_bp.index', client=c['id']) }}" class="card row" style="padding:12px 15px;">
+      <div class="avatar-badge">{{ c['name'][:2]|upper }}</div>
+      <div style="flex:1;min-width:0;">
+        <strong style="font-size:13.5px;">{{ c['name'] }}</strong>
+        <div class="muted" style="font-size:11.5px;">{{ c['phone'] }}{% if c['area'] %} · {{ c['area'] }}{% endif %}</div>
+      </div>
+      <span class="badge {{ 'badge-green' if c['status']=='Active' else 'badge-gray' }}">{{ c['status'] }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if results.invoices %}
+  <h4 style="font-size:13px;margin-bottom:8px;"><i class="ti ti-file-invoice"></i> Invoices ({{ results.invoices|length }})</h4>
+  <div class="stack" style="margin-bottom:20px;">
+    {% for i in results.invoices %}
+    <a href="{{ url_for('invoices_bp.detail', invoice_id=i['id']) }}" class="card row" style="padding:12px 15px;">
+      <div style="flex:1;min-width:0;">
+        <strong style="font-size:13.5px;">{{ i['inv_number'] }}</strong>
+        <div class="muted" style="font-size:11.5px;">{{ i['client_name'] }}</div>
+      </div>
+      <span class="mono" style="font-size:13px;font-weight:700;">₹{{ '%.0f'|format(i['total_amount'] or 0) }}</span>
+      <span class="badge {{ 'badge-green' if i['payment_status']=='Paid' else 'badge-amber' if i['payment_status']=='Partial' else 'badge-gray' }}">{{ i['payment_status'] }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if results.amc %}
+  <h4 style="font-size:13px;margin-bottom:8px;"><i class="ti ti-file-certificate"></i> AMC Contracts ({{ results.amc|length }})</h4>
+  <div class="stack" style="margin-bottom:20px;">
+    {% for a in results.amc %}
+    <a href="{{ url_for('amc_bp.index') }}" class="card row" style="padding:12px 15px;">
+      <div style="flex:1;min-width:0;">
+        <strong style="font-size:13.5px;">{{ a['contract_number'] }}</strong>
+        <div class="muted" style="font-size:11.5px;">{{ a['client_name'] }}</div>
+      </div>
+      <span class="badge {{ 'badge-green' if a['status']=='Active' else 'badge-gray' }}">{{ a['status'] }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if results.leads %}
+  <h4 style="font-size:13px;margin-bottom:8px;"><i class="ti ti-target-arrow"></i> Leads ({{ results.leads|length }})</h4>
+  <div class="stack" style="margin-bottom:20px;">
+    {% for l in results.leads %}
+    <a href="{{ url_for('leads_bp.index') }}" class="card row" style="padding:12px 15px;">
+      <div style="flex:1;min-width:0;">
+        <strong style="font-size:13.5px;">{{ l['name'] }}</strong>
+        <div class="muted" style="font-size:11.5px;">{{ l['phone'] }}</div>
+      </div>
+      <span class="badge badge-blue">{{ l['stage'] }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}{{ lead['name'] }}{% endblock %}
+{% block page_title %}Lead — {{ lead['name'] }}{% endblock %}
+
+{% block content %}
+<div class="grid-2" style="grid-template-columns: 1fr 300px; align-items:start;">
+  <div class="card">
+    <div class="row between" style="margin-bottom:12px;">
+      <div>
+        <h3>{{ lead['name'] }}</h3>
+        <span class="muted" style="font-size:12px;">{{ lead['client_type'] or 'Lead' }} · {{ lead['area'] or '—' }} · {{ lead['phone'] }}</span>
+      </div>
+      <span class="badge badge-{{ {'New':'blue','Contacted':'amber','Quoted':'purple','Won':'green','Lost':'gray'}[lead['stage']] }}" style="font-size:12px;padding:5px 12px;">{{ lead['stage'] }}</span>
+    </div>
+
+    <div class="grid-3" style="font-size:12.5px;margin-bottom:12px;">
+      <div><span class="muted">Source</span><br><strong>{{ lead['source'] }}</strong></div>
+      <div><span class="muted">Est. Value</span><br><strong>{% if lead['estimated_value'] %}₹{{ '{:,.0f}'.format(lead['estimated_value']) }}{% else %}—{% endif %}</strong></div>
+      <div><span class="muted">Assigned To</span><br><strong>{{ lead['assigned_to'] or 'Unassigned' }}</strong></div>
+    </div>
+
+    {% if lead['address'] %}<p style="font-size:12.5px;margin-bottom:10px;"><span class="muted">Address:</span> {{ lead['address'] }}</p>{% endif %}
+    {% if lead['notes'] %}<div class="notes-box" style="margin-bottom:12px;">{{ lead['notes'] }}</div>{% endif %}
+    {% if lead['stage'] == 'Lost' and lead['lost_reason'] %}
+    <div class="alert-banner danger"><i class="ti ti-x"></i> Lost: {{ lead['lost_reason'] }}</div>
+    {% endif %}
+
+    {% if lead['converted_client_id'] %}
+    <div class="alert-banner" style="background:var(--success-dim);color:var(--success);">
+      <i class="ti ti-circle-check"></i> Converted to client.
+      <a href="{{ url_for('clients_bp.index', client=lead['converted_client_id']) }}" style="margin-left:6px;text-decoration:underline;">View client →</a>
+    </div>
+    {% endif %}
+
+    <div class="row wrap" style="margin-top:14px;">
+      <a href="{{ url_for('leads_bp.edit', lead_id=lead['id']) }}" class="btn btn-ghost btn-sm"><i class="ti ti-edit"></i> Edit</a>
+      <a href="{{ url_for('quotations_bp.new', lead=lead['id']) }}" class="btn btn-ghost btn-sm"><i class="ti ti-file-text"></i> New Quotation</a>
+
+      {% if not lead['converted_client_id'] %}
+        {% if lead['stage'] not in ['Won', 'Lost'] %}
+        <div class="row" style="gap:6px;">
+          {% for s in stages %}
+            {% if s not in ['Won', 'Lost', lead['stage']] %}
+            <form method="POST" action="{{ url_for('leads_bp.update_stage', lead_id=lead['id']) }}">
+              <input type="hidden" name="stage" value="{{ s }}">
+              <button type="submit" class="btn btn-ghost btn-sm">Move to {{ s }}</button>
+            </form>
+            {% endif %}
+          {% endfor %}
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" data-modal-open="convertModal"><i class="ti ti-user-check"></i> Convert to Client</button>
+        <button type="button" class="btn btn-danger btn-sm" data-modal-open="lostModal"><i class="ti ti-x"></i> Mark Lost</button>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h3>Quotations</h3></div>
+    {% for q in quotations %}
+    <a href="{{ url_for('quotations_bp.detail', quote_id=q['id']) }}" style="display:block;padding:8px 0;border-bottom:1px solid var(--border);">
+      <div class="row between">
+        <span style="font-size:12.5px;"><strong>{{ q['quote_number'] }}</strong><br><span class="muted">{{ q['quote_date'] }}</span></span>
+        <span style="text-align:right;">
+          <span class="mono" style="font-size:12.5px;">₹{{ '{:,.0f}'.format(q['total_amount']) }}</span><br>
+          <span class="badge badge-{{ {'Draft':'gray','Sent':'blue','Accepted':'green','Rejected':'red','Expired':'amber'}[q['status']] }}">{{ q['status'] }}</span>
+        </span>
+      </div>
+    </a>
+    {% else %}
+    <p class="muted" style="font-size:12.5px;">No quotations yet.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="modal-overlay" id="convertModal">
+  <div class="modal-box" style="max-width:420px;">
+    <div class="modal-head"><strong>Convert to Client</strong><button data-modal-close class="btn btn-icon btn-ghost btn-sm"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <p class="muted" style="font-size:12.5px;margin-bottom:14px;">
+        This creates a new client using this lead's details and marks the lead Won.
+      </p>
+      <form method="POST" action="{{ url_for('leads_bp.convert', lead_id=lead['id']) }}" class="stack">
+        <div class="field">
+          <label>Total contracted visits</label>
+          <input type="number" name="total_visits" value="12" min="1">
+        </div>
+        <button type="submit" class="btn btn-primary">Convert to Client</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="lostModal">
+  <div class="modal-box" style="max-width:420px;">
+    <div class="modal-head"><strong>Mark Lead Lost</strong><button data-modal-close class="btn btn-icon btn-ghost btn-sm"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <form method="POST" action="{{ url_for('leads_bp.update_stage', lead_id=lead['id']) }}" class="stack">
+        <input type="hidden" name="stage" value="Lost">
+        <div class="field">
+          <label>Reason</label>
+          <textarea name="lost_reason" required placeholder="e.g. went with a competitor, price too high…"></textarea>
+        </div>
+        <button type="submit" class="btn btn-danger">Mark Lost</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

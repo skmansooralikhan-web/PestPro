@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<title>{% block title %}Dashboard{% endblock %} · PCT CRM</title>
+<link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+<meta name="theme-color" content="#0b5c33">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+<link rel="icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
+<link rel="stylesheet" href="{{ static_url('css/main.css') }}">
+{% block extra_head %}{% endblock %}
+</head>
+<body class="{{ company.get('theme','light') }}{{ ' tech-view' if current_user and current_user.role == 'technician' }}">
+{% if current_user %}
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo-badge">PC</div>
+      <div class="brand-text">
+        <strong>{{ company.get('companyName','PCT CRM') }}</strong>
+        <span>Ops &amp; Billing</span>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      {% if current_user.role == 'technician' %}
+        <div class="nav-section">Field Work</div>
+        <a class="nav-link {{ 'active' if request.endpoint=='jobcards_bp.tech_home' }}" href="{{ url_for('jobcards_bp.tech_home') }}"><i class="ti ti-clipboard-list"></i>My Jobs</a>
+        <a class="nav-link {{ 'active' if request.endpoint=='complaints_bp.index' }}" href="{{ url_for('complaints_bp.index') }}"><i class="ti ti-alert-circle"></i>Complaints</a>
+      {% else %}
+        <div class="nav-section">Overview</div>
+        <a class="nav-link {{ 'active' if request.endpoint=='dashboard_bp.dashboard' }}" href="{{ url_for('dashboard_bp.dashboard') }}"><i class="ti ti-layout-dashboard"></i>Dashboard</a>
+
+        <div class="nav-section">Operations</div>
+        <a class="nav-link {{ 'active' if request.endpoint=='clients_bp.index' }}" href="{{ url_for('clients_bp.index') }}"><i class="ti ti-users"></i>Clients</a>
+        <a class="nav-link {{ 'active' if request.endpoint and (request.endpoint.startswith('leads_bp') or request.endpoint.startswith('quotations_bp')) }}" href="{{ url_for('leads_bp.index') }}"><i class="ti ti-target-arrow"></i>Leads &amp; Quotes</a>
+        <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('scheduling_bp') }}" href="{{ url_for('scheduling_bp.week_view') }}"><i class="ti ti-calendar-event"></i>Scheduling</a>
+        <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('jobcards_bp') }}" href="{{ url_for('jobcards_bp.index') }}"><i class="ti ti-clipboard-list"></i>Job Cards</a>
+
+        <div class="nav-section">Billing</div>
+        <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('invoices_bp') }}" href="{{ url_for('invoices_bp.index') }}"><i class="ti ti-file-invoice"></i>Invoices</a>
+        <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('amc_bp') }}" href="{{ url_for('amc_bp.index') }}"><i class="ti ti-shield-check"></i>AMC Contracts</a>
+
+        <div class="nav-section">Resources</div>
+        <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('inventory_bp') }}" href="{{ url_for('inventory_bp.index') }}"><i class="ti ti-flask"></i>Inventory</a>
+        <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('reports_bp') }}" href="{{ url_for('reports_bp.index') }}"><i class="ti ti-chart-bar"></i>Reports</a>
+
+        <div class="nav-section">Support</div>
+        <a class="nav-link {{ 'active' if request.endpoint=='complaints_bp.index' }}" href="{{ url_for('complaints_bp.index') }}"><i class="ti ti-alert-circle"></i>Complaints</a>
+        <a class="nav-link {{ 'active' if request.endpoint=='feedback_bp.index' }}" href="{{ url_for('feedback_bp.index') }}"><i class="ti ti-star"></i>Feedback</a>
+
+        {% if current_user.role == 'admin' %}
+        <div class="nav-section">Admin</div>
+        <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('settings_bp') }}" href="{{ url_for('settings_bp.index') }}"><i class="ti ti-settings"></i>Settings</a>
+        {% endif %}
+      {% endif %}
+    </nav>
+    <div class="sidebar-foot">
+      <div class="sidebar-user">
+        <div class="avatar">{{ (current_user.full_name or current_user.username)[:2]|upper }}</div>
+        <div class="who">
+          <strong>{{ current_user.full_name or current_user.username }}</strong>
+          <span>{{ current_user.role }}</span>
+        </div>
+      </div>
+      <a class="nav-link" href="{{ url_for('auth_bp.logout') }}" style="margin-top:4px;"><i class="ti ti-logout"></i>Log out</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="header">
+      <div class="row">
+        <button class="icon-btn menu-toggle" id="menuToggle" type="button"><i class="ti ti-menu-2"></i></button>
+        <span class="page-title">{% block page_title %}{% endblock %}</span>
+      </div>
+      <div class="global-search" style="position:relative;">
+        <i class="ti ti-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--ink-soft);font-size:16px;pointer-events:none;"></i>
+        <input type="text" id="globalSearchInput" placeholder="Search clients, invoices, AMC, leads…" autocomplete="off"
+               style="width:280px;padding:8px 12px 8px 34px;font-size:13px;">
+        <div id="globalSearchDropdown" style="display:none;position:absolute;top:calc(100% + 6px);left:0;width:380px;background:var(--paper-raised);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);z-index:60;max-height:420px;overflow-y:auto;padding:8px;"></div>
+      </div>
+      <div class="header-actions">
+        <div style="position:relative">
+          <button class="icon-btn" id="notifBtn" type="button"><i class="ti ti-bell"></i><span class="notif-dot" id="notifDot" style="display:none">0</span></button>
+          <div id="notifDropdown" style="display:none; position:absolute; right:0; top:42px; width:320px; background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow-md); z-index:60; max-height:380px; overflow-y:auto;"></div>
+        </div>
+        <a href="{{ url_for('auth_bp.change_password') }}" class="icon-btn" title="Change password"><i class="ti ti-key"></i></a>
+      </div>
+    </header>
+    <main class="content">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div id="flashMessages" data-messages='{{ messages|tojson }}'></div>
+        {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <nav class="tabbar">
+    <div class="tabbar-inner">
+      <a href="{{ url_for('jobcards_bp.tech_home') }}" class="{{ 'active' if request.endpoint == 'jobcards_bp.tech_home' }}">
+        <i class="ti ti-clipboard-list"></i>My Jobs
+      </a>
+      <a href="{{ url_for('complaints_bp.index') }}" class="{{ 'active' if request.endpoint == 'complaints_bp.index' }}">
+        <i class="ti ti-alert-circle"></i>Complaints
+      </a>
+      <a href="{{ url_for('auth_bp.change_password') }}" class="{{ 'active' if request.endpoint == 'auth_bp.change_password' }}">
+        <i class="ti ti-key"></i>Password
+      </a>
+      <a href="{{ url_for('auth_bp.logout') }}">
+        <i class="ti ti-logout"></i>Log out
+      </a>
+    </div>
+  </nav>
+</div>
+<div class="toast-wrap" id="toastWrap"></div>
+
+<div class="modal-overlay" id="pdfPreviewModal">
+  <div class="modal-box" style="max-width:900px;width:95vw;">
+    <div class="modal-head">
+      <strong id="pdfPreviewTitle">Preview</strong>
+      <div class="row">
+        <a id="pdfPreviewDownload" href="#" download class="btn btn-primary btn-sm"><i class="ti ti-download"></i> Download</a>
+        <button type="button" data-modal-close class="btn btn-icon btn-ghost btn-sm"><i class="ti ti-x"></i></button>
+      </div>
+    </div>
+    <div class="modal-body" style="padding:0;background:var(--surface2);">
+      <div id="pdfPreviewStatus" class="empty-state" style="padding:60px 20px;">
+        <i class="ti ti-loader-2"></i>Loading preview…
+      </div>
+      <div id="pdfPreviewPages" style="max-height:78vh;overflow-y:auto;padding:16px;text-align:center;"></div>
+    </div>
+  </div>
+</div>
+
+<script src="{{ static_url('js/app.js') }}"></script>
+{% block extra_scripts %}{% endblock %}
+{% else %}
+{% block guest_content %}{% endblock %}
+{% endif %}
+</body>
+</html>

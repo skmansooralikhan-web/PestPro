@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}New Route{% endblock %}
+{% block page_title %}New Route{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:640px;">
+  <form method="POST" class="stack">
+    <div class="form-grid">
+      <div class="field">
+        <label>Route name *</label>
+        <input type="text" name="name" required placeholder="e.g. Banjara Hills Monday Loop">
+      </div>
+      <div class="field">
+        <label>Area</label>
+        <input type="text" name="area">
+      </div>
+      <div class="field span-2">
+        <label>Assigned technician</label>
+        <select name="assigned_tech">
+          <option value="">— None —</option>
+          {% for t in techs %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Clients on this route (in visiting order)</label>
+      <div class="chip-group" style="max-height:280px;overflow-y:auto;">
+        {% for c in clients %}
+        <label class="chip">
+          <input type="checkbox" name="client_ids" value="{{ c['id'] }}">{{ c['name'] }} ({{ c['area'] or '—' }})
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="field">
+      <label>Notes</label>
+      <textarea name="notes"></textarea>
+    </div>
+    <div class="row">
+      <button type="submit" class="btn btn-primary"><i class="ti ti-check"></i> Create Route</button>
+      <a href="{{ url_for('scheduling_bp.week_view') }}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

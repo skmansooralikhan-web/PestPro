@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Please Confirm{% endblock %}
+{% block page_title %}Please Confirm{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:520px;">
+  <div class="notes-box" style="margin-bottom:16px;">
+    <i class="ti ti-alert-triangle"></i> {{ warning_message }}
+  </div>
+  <form method="POST" action="{{ action_url }}">
+    {% for key, value in hidden_fields %}
+    <input type="hidden" name="{{ key }}" value="{{ value }}">
+    {% endfor %}
+    <input type="hidden" name="{{ confirm_field }}" value="on">
+    <div class="row">
+      <button type="submit" class="btn btn-primary"><i class="ti ti-check"></i> Yes, proceed anyway</button>
+      <a href="{{ cancel_url }}" class="btn btn-ghost">Cancel, let me fix it</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

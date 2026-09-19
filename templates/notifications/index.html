@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block page_title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="row" style="margin-bottom:14px;">
+  <form method="POST" action="{{ url_for('notifications_bp.mark_all_read') }}">
+    <button type="submit" class="btn btn-ghost btn-sm"><i class="ti ti-checks"></i> Mark all read</button>
+  </form>
+</div>
+
+<div class="stack">
+{% for n in notes %}
+  <div class="card" style="{{ 'opacity:.55;' if n['is_read'] }}">
+    <div class="row between">
+      <div>
+        <strong style="font-size:13px;">{{ n['title'] }}</strong>
+        <p style="font-size:12.5px;margin-top:3px;">{{ n['message'] }}</p>
+        <span class="muted" style="font-size:11px;">{{ n['created_at'][:16] }} · {{ n['type'] }}</span>
+      </div>
+      {% if not n['is_read'] %}
+      <form method="POST" action="{{ url_for('notifications_bp.mark_read', note_id=n['id']) }}">
+        <button type="submit" class="btn btn-ghost btn-sm btn-icon"><i class="ti ti-check"></i></button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+{% else %}
+  <div class="card empty-state"><i class="ti ti-bell-off"></i>No notifications yet.</div>
+{% endfor %}
+</div>
+{% endblock %}

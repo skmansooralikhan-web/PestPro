@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit Lead' if lead else 'New Lead' }}{% endblock %}
+{% block page_title %}{{ 'Edit Lead' if lead else 'New Lead' }}{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:640px;">
+  <form method="POST" class="stack">
+    <div class="form-grid">
+      <div class="field">
+        <label>Name *</label>
+        <input type="text" name="name" required value="{{ lead['name'] if lead else '' }}">
+      </div>
+      <div class="field">
+        <label>Phone *</label>
+        <input type="tel" name="phone" required value="{{ lead['phone'] if lead else '' }}">
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" name="email" value="{{ lead['email'] if lead else '' }}">
+      </div>
+      <div class="field">
+        <label>Client type</label>
+        <select name="client_type">
+          {% for t in ['Residential','Apartment','Hospital','Hotel','Restaurant','School','Industrial','Commercial','Other'] %}
+          <option value="{{ t }}" {{ 'selected' if lead and lead['client_type']==t }}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Area</label>
+        <input type="text" name="area" list="areaList" value="{{ lead['area'] if lead else '' }}">
+        <datalist id="areaList">{% for a in areas %}<option value="{{ a }}">{% endfor %}</datalist>
+      </div>
+      <div class="field">
+        <label>Source</label>
+        <select name="source">
+          {% for s in sources %}<option value="{{ s }}" {{ 'selected' if lead and lead['source']==s }}>{{ s }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Estimated value (₹)</label>
+        <input type="number" step="0.01" name="estimated_value" value="{{ lead['estimated_value'] if lead else '' }}">
+      </div>
+      <div class="field">
+        <label>Assigned to</label>
+        <select name="assigned_to">
+          <option value="">— Unassigned —</option>
+          {% for t in techs %}<option value="{{ t }}" {{ 'selected' if lead and lead['assigned_to']==t }}>{{ t }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field span-2">
+        <label>Address</label>
+        <textarea name="address">{{ lead['address'] if lead else '' }}</textarea>
+      </div>
+    </div>
+    <div class="field">
+      <label>Notes</label>
+      <textarea name="notes">{{ lead['notes'] if lead else '' }}</textarea>
+    </div>
+    <div class="row">
+      <button type="submit" class="btn btn-primary"><i class="ti ti-check"></i> {{ 'Save Changes' if lead else 'Add Lead' }}</button>
+      <a href="{{ url_for('leads_bp.index') }}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

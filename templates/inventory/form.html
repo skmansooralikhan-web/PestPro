@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit Item' if item else 'New Inventory Item' }}{% endblock %}
+{% block page_title %}{{ 'Edit Item' if item else 'New Inventory Item' }}{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:640px;">
+  <form method="POST" enctype="multipart/form-data" class="stack">
+    <div class="form-grid">
+      <div class="field">
+        <label>Name *</label>
+        <input type="text" name="name" required value="{{ item['name'] if item else '' }}">
+      </div>
+      <div class="field">
+        <label>Category</label>
+        <select name="category">
+          {% for c in categories %}
+          <option value="{{ c }}" {{ 'selected' if item and item['category']==c }}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Unit</label>
+        <select name="unit">
+          {% for u in ['Litres','ML','KG','Grams','Pieces','Boxes'] %}
+          <option value="{{ u }}" {{ 'selected' if item and item['unit']==u }}>{{ u }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% if not item %}
+      <div class="field">
+        <label>Opening stock</label>
+        <input type="number" step="0.01" name="current_stock" value="0">
+      </div>
+      {% endif %}
+      <div class="field">
+        <label>Minimum stock (reorder alert)</label>
+        <input type="number" step="0.01" name="minimum_stock" value="{{ item['minimum_stock'] if item else 5 }}">
+      </div>
+      <div class="field">
+        <label>Reorder quantity</label>
+        <input type="number" step="0.01" name="reorder_qty" value="{{ item['reorder_qty'] if item else 10 }}">
+      </div>
+      <div class="field">
+        <label>Unit cost (₹)</label>
+        <input type="number" step="0.01" name="unit_cost" value="{{ item['unit_cost'] if item else '' }}">
+      </div>
+      <div class="field">
+        <label>Supplier</label>
+        <input type="text" name="supplier" value="{{ item['supplier'] if item else '' }}">
+      </div>
+      <div class="field">
+        <label>Batch number</label>
+        <input type="text" name="batch_number" value="{{ item['batch_number'] if item else '' }}">
+      </div>
+      <div class="field">
+        <label>Expiry date</label>
+        <input type="date" name="expiry_date" value="{{ item['expiry_date'] if item else '' }}">
+      </div>
+      <div class="field">
+        <label>HSN code</label>
+        <input type="text" name="hsn_code" value="{{ item['hsn_code'] if item else '' }}">
+      </div>
+    </div>
+    <div class="field">
+      <label>Notes</label>
+      <textarea name="notes">{{ item['notes'] if item else '' }}</textarea>
+    </div>
+    <div class="field">
+      <label>MSDS document (PDF, up to 5MB)</label>
+      {% if item and item['msds_file'] %}
+      <div class="row between" style="margin-bottom:6px;">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="showPdfPreview('{{ url_for('inventory_bp.msds_download', item_id=item['id']) }}', 'MSDS-{{ item['name']|replace(' ', '-') }}.pdf', 'MSDS — {{ item['name'] }}')"><i class="ti ti-file-text"></i> View current MSDS</button>
+        <form method="POST" action="{{ url_for('inventory_bp.msds_delete', item_id=item['id']) }}" data-confirm="Remove this MSDS document?">
+          <button type="submit" class="btn btn-ghost btn-sm btn-icon"><i class="ti ti-trash"></i></button>
+        </form>
+      </div>
+      {% endif %}
+      <input type="file" name="msds_file" accept="application/pdf">
+    </div>
+    <div class="row">
+      <button type="submit" class="btn btn-primary"><i class="ti ti-check"></i> {{ 'Save Changes' if item else 'Add Item' }}</button>
+      <a href="{{ url_for('inventory_bp.index') }}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

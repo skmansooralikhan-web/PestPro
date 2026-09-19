@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}New User{% endblock %}
+{% block page_title %}New User{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:480px;">
+  <form method="POST" class="stack">
+    <div class="field">
+      <label>Username *</label>
+      <input type="text" name="username" required pattern="[a-z0-9_]+" title="lowercase letters, numbers, underscore only">
+    </div>
+    <div class="field">
+      <label>Temporary password *</label>
+      <input type="password" name="password" required minlength="8">
+      <span class="hint">User will be asked to change it on first login.</span>
+    </div>
+    <div class="field">
+      <label>Full name</label>
+      <input type="text" name="full_name">
+    </div>
+    <div class="field">
+      <label>Role *</label>
+      <select name="role" required>
+        <option value="technician">Technician</option>
+        <option value="manager">Manager</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Phone</label>
+      <input type="tel" name="phone">
+    </div>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" name="email">
+    </div>
+    <div class="row">
+      <button type="submit" class="btn btn-primary"><i class="ti ti-check"></i> Create User</button>
+      <a href="{{ url_for('settings_bp.users') }}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

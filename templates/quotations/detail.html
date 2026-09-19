@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Quotation {{ q['quote_number'] }}{% endblock %}
+{% block page_title %}Quotation {{ q['quote_number'] }}{% endblock %}
+
+{% block content %}
+<div class="grid-2" style="grid-template-columns: 1fr 300px; align-items:start;">
+  <div class="card">
+    <div class="row between" style="margin-bottom:14px;">
+      <div>
+        <h3>{{ recipient_name }}</h3>
+        <span class="muted" style="font-size:12px;">{{ q['quote_date'] }} · Valid until {{ q['valid_until'] }}</span>
+      </div>
+      <span class="badge badge-{{ {'Draft':'gray','Sent':'blue','Accepted':'green','Rejected':'red','Expired':'amber'}[q['status']] }}" style="font-size:12px;padding:5px 12px;">{{ q['status'] }}</span>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Service</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
+        <tbody>
+        {% for it in items %}
+          <tr>
+            <td>{{ it['service'] }}{% if it['description'] %}<br><span class="muted" style="font-size:11px;">{{ it['description'] }}</span>{% endif %}</td>
+            <td>{{ it['quantity'] }}</td>
+            <td class="mono">₹{{ '{:,.2f}'.format(it['unit_price']) }}</td>
+            <td class="mono">₹{{ '{:,.2f}'.format(it['amount']) }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="row" style="justify-content:flex-end;margin-top:14px;">
+      <div style="width:260px;font-size:13px;" class="stack">
+        <div class="row between"><span class="muted">Subtotal</span><span class="mono">₹{{ '{:,.2f}'.format(q['subtotal']) }}</span></div>
+        <div class="row between"><span class="muted">CGST @ {{ q['cgst_rate'] }}%</span><span class="mono">₹{{ '{:,.2f}'.format(q['cgst_amount']) }}</span></div>
+        <div class="row between"><span class="muted">SGST @ {{ q['sgst_rate'] }}%</span><span class="mono">₹{{ '{:,.2f}'.format(q['sgst_amount']) }}</span></div>
+        <div class="row between" style="font-weight:800;font-size:15px;border-top:1px solid var(--border);padding-top:6px;">
+          <span>Estimated Total</span><span class="mono">₹{{ '{:,.2f}'.format(q['total_amount']) }}</span>
+        </div>
+      </div>
+    </div>
+    <p class="muted" style="font-size:11.5px;text-align:right;margin-top:4px;">{{ amount_words }}</p>
+
+    {% if q['converted_invoice_id'] %}
+    <div class="alert-banner" style="background:var(--success-dim);color:var(--success);margin-top:14px;">
+      <i class="ti ti-circle-check"></i> Converted to invoice.
+      <a href="{{ url_for('invoices_bp.detail', invoice_id=q['converted_invoice_id']) }}" style="margin-left:6px;text-decoration:underline;">View invoice →</a>
+    </div>
+    {% endif %}
+
+    <div class="row wrap" style="margin-top:18px;">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="showPdfPreview('{{ url_for('quotations_bp.pdf', quote_id=q['id']) }}', '{{ q['quote_number']|replace('/', '-') }}.pdf', 'Quotation {{ q['quote_number'] }}')"><i class="ti ti-file-download"></i> View / Download PDF</button>
+
+      {% if q['status'] not in ['Accepted','Rejected'] %}
+      <form method="POST" action="{{ url_for('quotations_bp.update_status', quote_id=q['id']) }}">
+        <input type="hidden" name="status" value="Sent">
+        <button type="submit" class="btn btn-ghost btn-sm"><i class="ti ti-send"></i> Mark Sent</button>
+      </form>
+      <form method="POST" action="{{ url_for('quotations_bp.update_status', quote_id=q['id']) }}">
+        <input type="hidden" name="status" value="Accepted">
+        <button type="submit" class="btn btn-primary btn-sm"><i class="ti ti-check"></i> Mark Accepted</button>
+      </form>
+      <form method="POST" action="{{ url_for('quotations_bp.update_status', quote_id=q['id']) }}">
+        <input type="hidden" name="status" value="Rejected">
+        <button type="submit" class="btn btn-danger btn-sm"><i class="ti ti-x"></i> Mark Rejected</button>
+      </form>
+      {% endif %}
+
+      {% if q['status'] == 'Accepted' and not q['converted_invoice_id'] %}
+      <form method="POST" action="{{ url_for('quotations_bp.convert_to_invoice', quote_id=q['id']) }}">
+        <button type="submit" class="btn btn-primary btn-sm"><i class="ti ti-file-invoice"></i> Convert to Invoice</button>
+      </form>
+      {% endif %}
+    </div>
+    {% if q['status'] == 'Accepted' and not q['client_id'] %}
+    <p class="muted" style="font-size:11.5px;margin-top:8px;">
+      This quote is for a lead that hasn't been converted to a client yet —
+      convert the lead first to unlock "Convert to Invoice".
+    </p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h3>Linked To</h3></div>
+    {% if lead %}
+    <a href="{{ url_for('leads_bp.detail', lead_id=lead['id']) }}" class="btn btn-ghost btn-sm" style="width:100%;justify-content:flex-start;"><i class="ti ti-target-arrow"></i> {{ lead['name'] }} (lead)</a>
+    {% endif %}
+    {% if client %}
+    <a href="{{ url_for('clients_bp.index', client=client['id']) }}" class="btn btn-ghost btn-sm" style="width:100%;justify-content:flex-start;margin-top:6px;"><i class="ti ti-user"></i> {{ client['name'] }} (client)</a>
+    {% endif %}
+    {% if q['notes'] %}
+    <div class="divider"></div>
+    <div class="muted" style="font-size:11.5px;">{{ q['notes'] }}</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

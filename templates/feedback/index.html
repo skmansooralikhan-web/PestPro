@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Feedback{% endblock %}
+{% block page_title %}Client Feedback{% endblock %}
+
+{% block content %}
+{% if avg %}
+<div class="kpi-card" style="max-width:220px;margin-bottom:16px;">
+  <div class="kpi-label">Average Rating</div>
+  <div class="kpi-value">{{ avg }} ★</div>
+</div>
+{% endif %}
+
+<div class="stack">
+{% for f in rows %}
+  <div class="card">
+    <div class="row between">
+      <strong>{{ f['client_name'] }}</strong>
+      <span class="badge badge-amber">{{ f['rating'] }} ★</span>
+    </div>
+    <p style="font-size:13px;margin-top:6px;">{{ f['comment'] or 'No comment left.' }}</p>
+    <span class="muted" style="font-size:11px;">{{ f['submitted_at'][:10] }}{% if f['tech_name'] %} · {{ f['tech_name'] }}{% endif %}</span>
+  </div>
+{% else %}
+  <div class="card empty-state"><i class="ti ti-star"></i>No feedback submitted yet.</div>
+{% endfor %}
+</div>
+{% endblock %}

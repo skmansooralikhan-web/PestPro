@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit Client' if client else 'New Client' }}{% endblock %}
+{% block page_title %}{{ 'Edit ' + client['name'] if client else 'New Client' }}{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:760px;">
+  <form method="POST" class="stack">
+    <div class="form-grid">
+      <div class="field">
+        <label>Client name *</label>
+        <input type="text" name="name" required value="{{ client['name'] if client else '' }}">
+      </div>
+      <div class="field">
+        <label>Client type</label>
+        <select name="client_type">
+          {% for t in ['Residential','Apartment','Hospital','Hotel','Restaurant','School','Industrial','Commercial','Other'] %}
+          <option value="{{ t }}" {{ 'selected' if client and client['client_type']==t }}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Phone *</label>
+        <input type="tel" name="phone" required value="{{ client['phone'] if client else '' }}">
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" name="email" value="{{ client['email'] if client else '' }}">
+      </div>
+      <div class="field">
+        <label>Area</label>
+        <input type="text" name="area" list="areaList" value="{{ client['area'] if client else '' }}">
+        <datalist id="areaList">{% for a in areas %}<option value="{{ a }}">{% endfor %}</datalist>
+      </div>
+      <div class="field">
+        <label>Contact person</label>
+        <input type="text" name="contact_person" value="{{ client['contact_person'] if client else '' }}">
+      </div>
+      <div class="field span-2">
+        <label>Address</label>
+        <textarea name="address">{{ client['address'] if client else '' }}</textarea>
+      </div>
+      <div class="field">
+        <label>Latitude</label>
+        <input type="number" step="0.000001" name="latitude" id="latField" value="{{ client['latitude'] if client and client['latitude'] else '' }}">
+      </div>
+      <div class="field">
+        <label>Longitude</label>
+        <input type="number" step="0.000001" name="longitude" id="lngField" value="{{ client['longitude'] if client and client['longitude'] else '' }}">
+      </div>
+      {% if client %}
+      <div class="field span-2">
+        <label>&nbsp;</label>
+        <button type="button" class="btn btn-ghost btn-sm" style="align-self:flex-start;" onclick="geocodeClient('{{ client['id'] }}')">
+          <i class="ti ti-map-pin-search"></i> Look up coordinates from address
+        </button>
+        <span class="hint" id="geocodeStatus"></span>
+      </div>
+      {% endif %}
+      <div class="field">
+        <label>GST number</label>
+        <input type="text" name="gst_number" value="{{ client['gst_number'] if client else '' }}">
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <div class="checkbox-row">
+          <input type="checkbox" name="gst_exempt" id="gst_exempt" {{ 'checked' if client and client['gst_exempt'] }}>
+          <label for="gst_exempt">GST exempt (turnover &lt; ₹20 lakh)</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>Total contracted visits</label>
+        <input type="number" name="total_visits" min="1" value="{{ client['total_visits'] if client else 4 }}">
+      </div>
+      <div class="field">
+        <label>Visit frequency</label>
+        <select name="visit_frequency">
+          {% for f in ['Weekly','Bi-weekly','Monthly','Quarterly','Custom'] %}
+          <option value="{{ f }}" {{ 'selected' if client and client['visit_frequency']==f }}>{{ f }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Assigned technician</label>
+        <select name="assigned_tech">
+          <option value="">— None —</option>
+          {% for t in techs %}
+          <option value="{{ t }}" {{ 'selected' if client and client['assigned_tech']==t }}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Contract amount (₹)</label>
+        <input type="number" step="0.01" name="contract_amount" value="{{ client['contract_amount'] if client else '' }}">
+      </div>
+      <div class="field">
+        <label>Status</label>
+        <select name="status">
+          {% for s in ['Active','On Hold','Completed','Cancelled'] %}
+          <option value="{{ s }}" {{ 'selected' if client and client['status']==s }}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Contracted services</label>
+      <div class="chip-group">
+        {% for s in services_catalog %}
+        <label class="chip">
+          <input type="checkbox" name="services" value="{{ s }}" {{ 'checked' if client_services and s in client_services }}>{{ s }}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Preferred visit days</label>
+      <div class="chip-group">
+        {% for d in ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] %}
+        <label class="chip">
+          <input type="checkbox" name="preferred_days" value="{{ d }}" {{ 'checked' if client_days and d in client_days }}>{{ d }}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Special instructions / notes</label>
+      <textarea name="notes">{{ client['notes'] if client else '' }}</textarea>
+    </div>
+
+    <div class="row">
+      <button type="submit" class="btn btn-primary"><i class="ti ti-check"></i> {{ 'Save Changes' if client else 'Add Client' }}</button>
+      <a href="{{ url_for('clients_bp.index', client=client['id'] if client else None) }}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function geocodeClient(clientId) {
+  const status = document.getElementById('geocodeStatus');
+  status.textContent = 'Looking up…';
+  fetch('/api/clients/' + clientId + '/geocode', {
+    method: 'POST', headers: { 'X-CSRFToken': getCsrfToken() },
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        document.getElementById('latField').value = data.lat;
+        document.getElementById('lngField').value = data.lng;
+        status.textContent = 'Found: ' + data.lat.toFixed(5) + ', ' + data.lng.toFixed(5);
+      } else {
+        status.textContent = data.error || 'Could not find coordinates for that address.';
+      }
+    })
+    .catch(() => { status.textContent = 'Lookup failed — check your connection.'; });
+}
+</script>
+{% endblock %}

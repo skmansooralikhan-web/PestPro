@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Job Card — {{ jc['client_name'] }}{% endblock %}
+{% block page_title %}Job Card Detail{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:800px;">
+  <div class="row between" style="margin-bottom:14px;">
+    <div>
+      <h3>{{ jc['client_name'] }}</h3>
+      <span class="muted" style="font-size:12px;">{{ jc['client_address'] or '' }}, {{ jc['client_area'] or '' }}</span>
+    </div>
+    <div class="row" style="gap:16px;">
+      <a href="{{ url_for('jobcards_bp.pdf', job_card_id=jc['id']) }}" target="_blank" class="btn btn-primary btn-sm">
+        <i class="ti ti-printer"></i> Print / Download
+      </a>
+      <div style="text-align:right;">
+        <span class="muted" style="font-size:12px;">Technician</span><br>
+        <strong>{{ jc['tech_name'] }}</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="row" style="margin-bottom:14px;">
+    {% set outcome = jc['visit_outcome'] or 'Completed' %}
+    <span class="badge {{ 'badge-green' if outcome == 'Completed' else 'badge-amber' }}">{{ outcome }}</span>
+    {% if jc['visit_invoice_id'] %}
+      {% if session.get('role') != 'technician' %}
+      <a href="{{ url_for('invoices_bp.detail', invoice_id=jc['visit_invoice_id']) }}" class="badge badge-blue" style="margin-left:6px;"><i class="ti ti-receipt"></i> Invoiced — {{ jc['inv_number'] }}</a>
+      {% else %}
+      <span class="badge badge-blue" style="margin-left:6px;"><i class="ti ti-receipt"></i> Invoiced — {{ jc['inv_number'] }}</span>
+      {% endif %}
+    {% elif outcome == 'Completed' %}
+      <span class="badge badge-gray" style="margin-left:6px;">Not yet invoiced</span>
+    {% endif %}
+  </div>
+
+  <div class="grid-2" style="font-size:12.5px;margin-bottom:14px;">
+    <div><span class="muted">Check-in</span><br>{{ jc['start_time'][:16] if jc['start_time'] else '—' }}</div>
+    <div><span class="muted">Check-out</span><br>{{ jc['end_time'][:16] if jc['end_time'] else '—' }}</div>
+  </div>
+
+  <div class="divider"></div>
+  <h4 style="font-size:13px;margin-bottom:8px;">Pests Found</h4>
+  {% if pests_found %}
+  <div class="table-wrap" style="margin-bottom:14px;">
+    <table><thead><tr><th>Pest</th><th>Severity</th><th>Area</th></tr></thead>
+    <tbody>{% for p in pests_found %}<tr><td>{{ p.pest }}</td><td>{{ p.severity }}</td><td>{{ p.area }}</td></tr>{% endfor %}</tbody></table>
+  </div>
+  {% else %}<p class="muted" style="font-size:12.5px;">None logged.</p>{% endif %}
+
+  <h4 style="font-size:13px;margin-bottom:8px;">Treatments Done</h4>
+  {% if treatments_done %}
+  <div class="table-wrap" style="margin-bottom:14px;">
+    <table><thead><tr><th>Service</th><th>Chemical</th><th>Area</th></tr></thead>
+    <tbody>{% for t in treatments_done %}<tr><td>{{ t.service }}</td><td>{{ t.chemical }}</td><td>{{ t.area }}</td></tr>{% endfor %}</tbody></table>
+  </div>
+  {% else %}<p class="muted" style="font-size:12.5px;">None logged.</p>{% endif %}
+
+  <h4 style="font-size:13px;margin-bottom:8px;">Chemicals Used</h4>
+  {% if chemicals_used %}
+  <div class="table-wrap" style="margin-bottom:14px;">
+    <table><thead><tr><th>Item</th><th>Quantity</th><th>Dilution / mix ratio</th></tr></thead>
+    <tbody>{% for c in chemicals_used %}<tr><td>{{ c.name }}</td><td>{{ c.qty }} {{ c.unit }}</td><td>{{ c.dilution or '—' }}</td></tr>{% endfor %}</tbody></table>
+  </div>
+  {% else %}<p class="muted" style="font-size:12.5px;">None logged.</p>{% endif %}
+
+  <div class="grid-2" style="margin-bottom:14px;">
+    <div>
+      <h4 style="font-size:13px;margin-bottom:6px;">Observations</h4>
+      <p style="font-size:12.5px;">{{ jc['observations'] or '—' }}</p>
+    </div>
+    <div>
+      <h4 style="font-size:13px;margin-bottom:6px;">Recommendations</h4>
+      <p style="font-size:12.5px;">{{ jc['recommendations'] or '—' }}</p>
+    </div>
+  </div>
+
+  {% if jc['followup_required'] %}
+  <div class="notes-box" style="margin-bottom:14px;">
+    <i class="ti ti-alert-triangle"></i> Follow-up required: {{ jc['followup_reason'] or 'no reason given' }}
+    {% if followup_visit %}
+    — <a href="{{ url_for('scheduling_bp.view_visit', visit_id=followup_visit['id']) }}">scheduled for {{ followup_visit['scheduled_date'] }}</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if jc['signature_waived'] %}
+  <div class="notes-box" style="margin-bottom:14px;">
+    <i class="ti ti-info-circle"></i> Signature waived — {{ jc['signature_waived_reason'] or 'no reason given' }}
+  </div>
+  {% endif %}
+
+  {% if photos %}
+  <h4 style="font-size:13px;margin-bottom:8px;">Photos</h4>
+  {% set before_photos = photos|selectattr('type', 'equalto', 'before')|list %}
+  {% set after_photos = photos|selectattr('type', 'equalto', 'after')|list %}
+  {% if before_photos %}
+  <div class="muted" style="font-size:10.5px;font-weight:700;text-transform:uppercase;margin-bottom:4px;">Before</div>
+  <div class="row wrap" style="margin-bottom:10px;">
+    {% for p in before_photos %}
+    <img src="{{ url_for('jobcards_bp.photo', relpath=p.path) }}" style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--border);">
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if after_photos %}
+  <div class="muted" style="font-size:10.5px;font-weight:700;text-transform:uppercase;margin-bottom:4px;">After</div>
+  <div class="row wrap" style="margin-bottom:14px;">
+    {% for p in after_photos %}
+    <img src="{{ url_for('jobcards_bp.photo', relpath=p.path) }}" style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--border);">
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endif %}
+
+  {% if jc['client_signature'] %}
+  <h4 style="font-size:13px;margin-bottom:8px;">Client Signature</h4>
+  <img src="{{ jc['client_signature'] }}" style="max-width:280px;border:1px solid var(--border);border-radius:8px;background:#fff;">
+  {% endif %}
+</div>
+{% endblock %}

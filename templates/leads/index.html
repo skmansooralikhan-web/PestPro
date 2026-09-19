@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Leads &amp; Quotes{% endblock %}
+{% block page_title %}Leads &amp; Quotes{% endblock %}
+
+{% block content %}
+<div class="kpi-row kpi-row-3">
+  <div class="kpi-card"><div class="kpi-label">Total Leads</div><div class="kpi-value">{{ total }}</div></div>
+  <div class="kpi-card" style="border-top-color:var(--success);"><div class="kpi-label">Won</div><div class="kpi-value">{{ won }}</div></div>
+  <div class="kpi-card info"><div class="kpi-label">Conversion Rate</div><div class="kpi-value">{{ conversion_rate }}%</div></div>
+</div>
+
+<div class="row between" style="margin-bottom:14px;">
+  <form method="GET">
+    <select name="source" onchange="this.form.submit()">
+      <option value="">All sources</option>
+      {% for s in sources %}<option value="{{ s }}" {{ 'selected' if source_filter==s }}>{{ s }}</option>{% endfor %}
+    </select>
+  </form>
+  <a href="{{ url_for('leads_bp.new') }}" class="btn btn-primary"><i class="ti ti-user-plus"></i> New Lead</a>
+</div>
+
+<div class="week-grid" style="grid-template-columns:repeat(5,1fr);">
+  {% for stage in stages %}
+  <div class="day-col">
+    <div class="day-col-head">
+      <div class="dname">{{ stage }}</div>
+      <div class="dnum" style="font-size:14px;">{{ board[stage]|length }}</div>
+    </div>
+    <div class="day-col-body">
+      {% for l in board[stage] %}
+      <a href="{{ url_for('leads_bp.detail', lead_id=l['id']) }}" class="visit-chip c-{{ {'New':'blue','Contacted':'amber','Quoted':'purple','Won':'green','Lost':'gray'}[stage] }}" style="display:block;cursor:pointer;">
+        <div class="vclient">{{ l['name'] }}</div>
+        <div class="muted" style="font-size:10.5px;">{{ l['area'] or '' }}{% if l['estimated_value'] %} · ₹{{ '{:,.0f}'.format(l['estimated_value']) }}{% endif %}</div>
+        <div class="muted" style="font-size:10px;margin-top:2px;">{{ l['source'] }}</div>
+      </a>
+      {% else %}
+      <p class="muted" style="font-size:11.5px;text-align:center;padding:10px 0;">Empty</p>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

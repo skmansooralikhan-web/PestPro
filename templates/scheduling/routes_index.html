@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Routes{% endblock %}
+{% block page_title %}Routes{% endblock %}
+
+{% block content %}
+<div class="row" style="margin-bottom:14px;">
+  <a href="{{ url_for('scheduling_bp.new_route') }}" class="btn btn-primary"><i class="ti ti-route"></i> New Route</a>
+</div>
+
+<div class="stack">
+  {% for r in routes %}
+  <a href="{{ url_for('scheduling_bp.route_detail', route_id=r['id']) }}" class="card" style="display:block;">
+    <div class="row between">
+      <div>
+        <strong>{{ r['name'] }}</strong>
+        <div class="muted" style="font-size:12px;">{{ r['area'] or '' }}{% if r['assigned_tech'] %} · {{ r['assigned_tech'] }}{% endif %}</div>
+      </div>
+      <span class="badge badge-blue">{{ (r['client_ids']|from_json)|length }} stops</span>
+    </div>
+  </a>
+  {% else %}
+  <div class="card empty-state"><i class="ti ti-route"></i>No routes yet.</div>
+  {% endfor %}
+</div>
+{% endblock %}

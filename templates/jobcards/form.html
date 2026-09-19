@@ -1,0 +1,410 @@
+{% extends "base.html" %}
+{% block title %}Job Card — {{ visit['client_name'] }}{% endblock %}
+{% block page_title %}Job Card{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:640px;margin:0 auto;">
+  <div class="row between" style="margin-bottom:4px;">
+    <h3>{{ visit['client_name'] }}</h3>
+    <span class="muted" style="font-size:12px;">{{ visit['scheduled_date'] }}</span>
+  </div>
+  <p class="muted" style="font-size:12.5px;margin-bottom:16px;"><i class="ti ti-map-pin"></i> {{ visit['client_address'] or visit['client_area'] or '' }}</p>
+
+  <!-- Step progress: dots, not a number to read -->
+  <div class="row" id="stepDots" style="gap:6px;margin-bottom:20px;">
+    <div class="step-dot active" data-dot="1"></div>
+    <div class="step-dot" data-dot="2"></div>
+    <div class="step-dot" data-dot="3"></div>
+    <div class="step-dot" data-dot="4"></div>
+    <div class="step-dot" data-dot="5"></div>
+    <div class="step-dot" data-dot="6"></div>
+  </div>
+
+  <form method="POST" id="jobCardForm">
+    <input type="hidden" name="start_time" value="{{ existing['start_time'] if existing else '' }}">
+    <input type="hidden" name="pests_found_json" id="pestsFoundJson">
+    <input type="hidden" name="treatments_done_json" id="treatmentsDoneJson">
+    <input type="hidden" name="chemicals_used_json" id="chemicalsUsedJson">
+    <input type="hidden" name="photos_json" id="photosJson">
+    <input type="hidden" name="client_signature" id="signatureInput" value="{{ existing['client_signature'] if existing else '' }}">
+    <input type="hidden" name="checkin_lat" id="checkinLat" value="{{ existing['checkin_lat'] if existing else '' }}">
+    <input type="hidden" name="checkin_lng" id="checkinLng" value="{{ existing['checkin_lng'] if existing else '' }}">
+    <input type="hidden" name="checkout_lat" id="checkoutLat" value="">
+    <input type="hidden" name="checkout_lng" id="checkoutLng" value="">
+
+    <!-- ===== Step 1: Arrival ===== -->
+    <section class="wizard-step" data-step="1">
+      <h4 style="font-size:15px;margin-bottom:14px;">How did the visit go?</h4>
+      <div class="outcome-grid">
+        <label class="outcome-tile">
+          <input type="radio" name="visit_outcome" value="Completed" checked>
+          <i class="ti ti-circle-check"></i><strong>Completed</strong>
+        </label>
+        <label class="outcome-tile">
+          <input type="radio" name="visit_outcome" value="Incomplete - No Access">
+          <i class="ti ti-door-off"></i><strong>No Access</strong>
+        </label>
+        <label class="outcome-tile">
+          <input type="radio" name="visit_outcome" value="Incomplete - Customer Refused">
+          <i class="ti ti-hand-stop"></i><strong>Refused</strong>
+        </label>
+        <label class="outcome-tile">
+          <input type="radio" name="visit_outcome" value="Incomplete - Other">
+          <i class="ti ti-help-circle"></i><strong>Other</strong>
+        </label>
+      </div>
+
+      <div class="row" style="margin-top:20px;gap:8px;" id="gpsStatusRow">
+        <i class="ti ti-map-pin-check" style="font-size:20px;color:var(--pine);" id="gpsIcon"></i>
+        <span class="muted" style="font-size:12.5px;" id="gpsStatus">Getting your location…</span>
+      </div>
+    </section>
+
+    <!-- ===== Step 2: Pests found ===== -->
+    <section class="wizard-step" data-step="2" style="display:none;">
+      <h4 style="font-size:15px;margin-bottom:4px;">What did you find?</h4>
+      <p class="muted" style="font-size:12.5px;margin-bottom:14px;">Tap all that apply. You can adjust details below.</p>
+      <div class="pick-grid" id="pestPicker">
+        {% for p in ['Cockroach','Termite','Rodent','Mosquito','Bed Bug','Ant','Lizard','Spider','Wood Borer','Housefly'] %}
+        <button type="button" class="pick-tile" onclick="addPestFromPicker('{{ p }}')">
+          <i class="ti ti-bug"></i><span>{{ p }}</span>
+        </button>
+        {% endfor %}
+      </div>
+      <div id="pestsContainer" class="stack" style="margin-top:14px;margin-bottom:8px;"></div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="addPestRow()"><i class="ti ti-plus"></i> Add something else</button>
+    </section>
+
+    <!-- ===== Step 3: What was done ===== -->
+    <section class="wizard-step" data-step="3" style="display:none;">
+      <h4 style="font-size:15px;margin-bottom:4px;">What did you do?</h4>
+      <p class="muted" style="font-size:12.5px;margin-bottom:14px;">Tap the services carried out.</p>
+      <div class="pick-grid" id="treatmentPicker">
+        {% for s in services_catalog %}
+        <button type="button" class="pick-tile" onclick="addTreatmentFromPicker('{{ s }}')">
+          <i class="ti ti-spray"></i><span>{{ s }}</span>
+        </button>
+        {% endfor %}
+      </div>
+      <div id="treatmentsContainer" class="stack" style="margin-top:14px;margin-bottom:8px;"></div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="addTreatmentRow()"><i class="ti ti-plus"></i> Add something else</button>
+
+      <div class="divider"></div>
+      <h4 style="font-size:14px;margin-bottom:8px;">Chemicals used</h4>
+      <div id="chemicalsContainer" class="stack" style="margin-bottom:8px;"></div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="addChemicalRow()"><i class="ti ti-plus"></i> Add chemical</button>
+      <p class="muted" style="font-size:11px;margin-top:6px;">Stock is deducted automatically when you submit.</p>
+    </section>
+
+    <!-- ===== Step 4: Photos ===== -->
+    <section class="wizard-step" data-step="4" style="display:none;">
+      <h4 style="font-size:15px;margin-bottom:14px;">Take photos</h4>
+      <div class="row" style="gap:12px;">
+        <label class="photo-btn">
+          <i class="ti ti-camera"></i><span>Before</span>
+          <input type="file" id="photoInputBefore" accept="image/*" capture="environment" multiple style="display:none;">
+        </label>
+        <label class="photo-btn">
+          <i class="ti ti-camera"></i><span>After</span>
+          <input type="file" id="photoInputAfter" accept="image/*" capture="environment" multiple style="display:none;">
+        </label>
+      </div>
+      <div id="photoPreview" style="margin-top:14px;"></div>
+    </section>
+
+    <!-- ===== Step 5: Notes ===== -->
+    <section class="wizard-step" data-step="5" style="display:none;">
+      <h4 style="font-size:15px;margin-bottom:14px;">Any notes?</h4>
+      <div class="form-grid cols-1">
+        <div class="field">
+          <label>Observations</label>
+          <textarea name="observations" placeholder="What was seen, access issues, etc.">{{ existing['observations'] if existing else '' }}</textarea>
+        </div>
+        <div class="field">
+          <label>Recommendations for client</label>
+          <textarea name="recommendations">{{ existing['recommendations'] if existing else '' }}</textarea>
+        </div>
+        <div class="field">
+          <div class="checkbox-row">
+            <input type="checkbox" name="followup_required" id="followup_required" {{ 'checked' if existing and existing['followup_required'] }}>
+            <label for="followup_required">Follow-up visit needed</label>
+          </div>
+        </div>
+        <div id="followupDetails" style="display:none;">
+          <div class="field">
+            <label>Why?</label>
+            <input type="text" name="followup_reason" id="followupReason" value="{{ existing['followup_reason'] if existing else '' }}">
+          </div>
+          <div class="field">
+            <label>When?</label>
+            <input type="date" name="followup_date" id="followupDate">
+            <span class="hint">A follow-up visit is scheduled automatically when you submit.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Step 6: Signature + submit ===== -->
+    <section class="wizard-step" data-step="6" style="display:none;">
+      <h4 style="font-size:15px;margin-bottom:10px;">Get a signature</h4>
+      <canvas id="sigCanvas" style="width:100%;height:170px;border:2px solid var(--border);border-radius:var(--radius);background:#fff;touch-action:none;"></canvas>
+      <button type="button" class="btn btn-ghost btn-sm" id="clearSig" style="margin-top:10px;"><i class="ti ti-eraser"></i> Clear</button>
+
+      <div class="field" style="margin-top:14px;">
+        <div class="checkbox-row">
+          <input type="checkbox" name="signature_waived" id="signatureWaived">
+          <label for="signatureWaived">Customer not available to sign</label>
+        </div>
+      </div>
+      <div class="field" id="waivedReasonField" style="display:none;">
+        <label>Why?</label>
+        <input type="text" name="signature_waived_reason" id="signatureWaivedReason" placeholder="e.g. customer left before job finished">
+      </div>
+
+      <div class="row" style="margin-top:16px;gap:8px;">
+        <i class="ti ti-map-pin-check" style="font-size:18px;color:var(--pine);"></i>
+        <span class="muted" style="font-size:12px;" id="gpsStatusOut">Getting your location…</span>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="margin-top:18px;width:100%;justify-content:center;padding:15px;font-size:15.5px;">
+        <i class="ti ti-clipboard-check" style="font-size:19px;"></i> Submit Job Card
+      </button>
+    </section>
+
+    <!-- Wizard nav -->
+    <div class="row between" style="margin-top:22px;">
+      <button type="button" class="btn btn-ghost" id="wizBack" onclick="wizardBack()" style="visibility:hidden;padding:12px 20px;">
+        <i class="ti ti-arrow-left"></i> Back
+      </button>
+      <button type="button" class="btn btn-primary" id="wizNext" onclick="wizardNext()" style="padding:12px 24px;font-size:14.5px;">
+        Next <i class="ti ti-arrow-right"></i>
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ static_url('js/offline-queue.js') }}"></script>
+<script src="{{ static_url('js/jobcard.js') }}"></script>
+<script>
+const inventoryData = {{ inventory_data|tojson }};
+const existingPests = {{ (existing['pests_found']|from_json if existing else [])|tojson }};
+const existingTreatments = {{ (existing['treatments_done']|from_json if existing else [])|tojson }};
+const existingChemicals = {{ (existing['chemicals_used']|from_json if existing else [])|tojson }};
+
+function addPestRow(data) {
+  data = data || {};
+  addRepeatRow('pestsContainer', `
+    <div class="form-grid cols-3" style="align-items:end;">
+      <div class="field"><label>Pest</label><input type="text" data-field="pest" value="${data.pest || ''}"></div>
+      <div class="field"><label>Severity</label>
+        <select data-field="severity">
+          ${['Low','Medium','High'].map(s => `<option ${data.severity===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label>Area</label><input type="text" data-field="area" value="${data.area || ''}" placeholder="Kitchen, etc.">
+        <button type="button" onclick="removeRepeatRow(this)" class="btn btn-ghost btn-sm" style="margin-top:5px;"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`);
+}
+
+function addPestFromPicker(name) {
+  addPestRow({ pest: name, severity: 'Medium', area: '' });
+  showToast(name + ' added — set severity/area below if needed.', 'success');
+}
+
+function addTreatmentRow(data) {
+  data = data || {};
+  addRepeatRow('treatmentsContainer', `
+    <div class="form-grid cols-3" style="align-items:end;">
+      <div class="field"><label>Service</label><input type="text" data-field="service" value="${data.service || ''}"></div>
+      <div class="field"><label>Chemical/Method</label><input type="text" data-field="chemical" value="${data.chemical || ''}"></div>
+      <div class="field"><label>Area</label><input type="text" data-field="area" value="${data.area || ''}">
+        <button type="button" onclick="removeRepeatRow(this)" class="btn btn-ghost btn-sm" style="margin-top:5px;"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`);
+}
+
+function addTreatmentFromPicker(name) {
+  addTreatmentRow({ service: name, chemical: '', area: '' });
+  showToast(name + ' added.', 'success');
+}
+
+function addChemicalRow(data) {
+  data = data || {};
+  const options = inventoryData.map(([id, name, unit, stock]) =>
+    `<option value="${id}" data-unit="${unit}" data-stock="${stock}" ${data.item_id===id?'selected':''}>${name} (${stock} ${unit} left)</option>`).join('');
+  addRepeatRow('chemicalsContainer', `
+    <div class="form-grid cols-3" style="align-items:end;">
+      <div class="field"><label>Chemical</label>
+        <select data-field="item_id">${options}</select>
+      </div>
+      <div class="field"><label>Quantity</label><input type="number" step="0.01" min="0" data-field="qty" value="${data.qty || ''}"></div>
+      <div class="field"><label>Dilution / mix ratio</label><input type="text" data-field="dilution" value="${data.dilution || ''}" placeholder="e.g. 1:100, 5ml/L">
+        <button type="button" onclick="removeRepeatRow(this)" class="btn btn-ghost btn-sm" style="margin-top:5px;"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`);
+}
+
+async function submitJobCard() {
+  const form = document.getElementById('jobCardForm');
+  const submitBtn = form.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="ti ti-loader-2"></i> Submitting…';
+
+  const fields = {};
+  new FormData(form).forEach((value, key) => { fields[key] = value; });
+  const visitId = '{{ visit["id"] }}';
+
+  // If we're visibly offline, don't even try the network — queue straight away.
+  if (!navigator.onLine) {
+    return queueAndRedirect(visitId, fields, submitBtn);
+  }
+
+  const body = new URLSearchParams();
+  Object.entries(fields).forEach(([k, v]) => body.append(k, v));
+  try {
+    const resp = await fetch(form.action || window.location.href, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+      redirect: 'follow',
+    });
+    if (resp.ok || resp.redirected) {
+      window.location.href = resp.url || '{{ url_for("jobcards_bp.tech_home") }}';
+    } else {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="ti ti-clipboard-check"></i> Submit Job Card';
+      showToast('The server rejected the submission — check the form and try again.', 'error');
+    }
+  } catch (err) {
+    // fetch() throws on a genuine network failure — this is the offline case
+    // even when navigator.onLine hadn't caught up yet.
+    return queueAndRedirect(visitId, fields, submitBtn);
+  }
+}
+
+async function queueAndRedirect(visitId, fields, submitBtn) {
+  try {
+    await queueJobCard(visitId, fields);
+    showToast('No connection — job card saved on this device and will sync '
+      + 'automatically once you\'re back online.', 'success');
+    window.location.href = '{{ url_for("jobcards_bp.tech_home") }}';
+  } catch (err) {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="ti ti-clipboard-check"></i> Submit Job Card';
+    showToast('Could not save offline either — this device may not support '
+      + 'offline storage. Try again once you have a connection.', 'error');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initSignaturePad('sigCanvas', 'signatureInput', 'clearSig');
+  initPhotoCapture('photoInputBefore', 'photoPreview', 'photosJson', 'before');
+  initPhotoCapture('photoInputAfter', 'photoPreview', 'photosJson', 'after');
+
+  if (existingPests.length) existingPests.forEach(addPestRow);
+  if (existingTreatments.length) existingTreatments.forEach(addTreatmentRow);
+  if (existingChemicals.length) existingChemicals.forEach(addChemicalRow); else if (inventoryData.length) addChemicalRow();
+
+  // GPS captures automatically the moment the technician opens the form —
+  // one less manual step to remember. The button-driven captureGPS() is
+  // still available in case it needs a retry (e.g. permission was denied
+  // the first time and just got granted).
+  captureGPS('checkinLat', 'checkinLng', 'gpsStatus');
+  captureGPS('checkoutLat', 'checkoutLng', 'gpsStatusOut');
+
+  const followupCheckbox = document.getElementById('followup_required');
+  const followupDetails = document.getElementById('followupDetails');
+  const followupDateInput = document.getElementById('followupDate');
+  function syncFollowupVisibility() {
+    followupDetails.style.display = followupCheckbox.checked ? 'block' : 'none';
+    if (followupCheckbox.checked && !followupDateInput.value) {
+      const d = new Date();
+      d.setDate(d.getDate() + 7);
+      followupDateInput.value = d.toISOString().slice(0, 10);
+    }
+  }
+  followupCheckbox.addEventListener('change', syncFollowupVisibility);
+  syncFollowupVisibility();
+
+  const waivedCheckbox = document.getElementById('signatureWaived');
+  const waivedReasonField = document.getElementById('waivedReasonField');
+  waivedCheckbox.addEventListener('change', () => {
+    waivedReasonField.style.display = waivedCheckbox.checked ? 'block' : 'none';
+  });
+
+  document.getElementById('jobCardForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    document.getElementById('pestsFoundJson').value = JSON.stringify(collectRepeatRows('pestsContainer', ['pest','severity','area']));
+    document.getElementById('treatmentsDoneJson').value = JSON.stringify(collectRepeatRows('treatmentsContainer', ['service','chemical','area']));
+    document.getElementById('chemicalsUsedJson').value = JSON.stringify(collectRepeatRows('chemicalsContainer', ['item_id','qty','dilution']));
+    if (!document.getElementById('photosJson').value) document.getElementById('photosJson').value = '[]';
+
+    const outcome = document.querySelector('input[name="visit_outcome"]:checked').value;
+    // A signature pad drawn while its canvas was still hidden/mis-sized
+    // can produce a short, broken data: value that's technically
+    // non-empty — checking a minimum length catches that even if the
+    // resize-on-visible fix in initSignaturePad() were ever bypassed.
+    const sigValue = document.getElementById('signatureInput').value;
+    const hasSignature = !!sigValue && sigValue.length > 100;
+    const waived = document.getElementById('signatureWaived').checked;
+    const waivedReason = document.getElementById('signatureWaivedReason').value.trim();
+    if (outcome === 'Completed' && !hasSignature) {
+      if (!waived) {
+        showToast('Get the customer\'s signature before submitting, or check "Customer not available to sign".', 'error');
+        return;
+      }
+      if (!waivedReason) {
+        showToast('Add a reason the customer couldn\'t sign.', 'error');
+        return;
+      }
+    }
+    submitJobCard();
+  });
+
+  initWizard();
+});
+
+// ---- Wizard step navigation ------------------------------------------------
+const TOTAL_STEPS = 6;
+let currentStep = 1;
+
+function initWizard() {
+  document.querySelectorAll('.outcome-tile input').forEach(el => {
+    el.addEventListener('change', syncOutcomeTiles);
+  });
+  syncOutcomeTiles();
+  showStep(1);
+}
+
+function syncOutcomeTiles() {
+  document.querySelectorAll('.outcome-tile').forEach(tile => {
+    tile.classList.toggle('checked', tile.querySelector('input').checked);
+  });
+}
+
+function showStep(n) {
+  currentStep = n;
+  document.querySelectorAll('.wizard-step').forEach(el => {
+    el.style.display = (parseInt(el.dataset.step) === n) ? 'block' : 'none';
+  });
+  document.querySelectorAll('.step-dot').forEach(dot => {
+    const d = parseInt(dot.dataset.dot);
+    dot.classList.toggle('active', d === n);
+    dot.classList.toggle('done', d < n);
+  });
+  document.getElementById('wizBack').style.visibility = (n === 1) ? 'hidden' : 'visible';
+  document.getElementById('wizNext').style.display = (n === TOTAL_STEPS) ? 'none' : 'inline-flex';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function wizardNext() {
+  if (currentStep < TOTAL_STEPS) showStep(currentStep + 1);
+}
+function wizardBack() {
+  if (currentStep > 1) showStep(currentStep - 1);
+}
+</script>
+{% endblock %}

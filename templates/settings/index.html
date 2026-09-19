@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+<div class="tabs">
+  <a class="active" href="#">Company</a>
+  <a href="{{ url_for('settings_bp.users') }}">Users</a>
+  <a href="{{ url_for('settings_bp.audit_log') }}">Audit Log</a>
+  <a href="{{ url_for('settings_bp.backup') }}">Backup</a>
+</div>
+
+<form method="POST" enctype="multipart/form-data" class="stack">
+  <div class="card">
+    <div class="card-header"><h3>Company Details</h3></div>
+    <div class="form-grid">
+      <div class="field span-2">
+        <label>Company name</label>
+        <input type="text" name="companyName" value="{{ company.get('companyName','') }}">
+      </div>
+      <div class="field span-2">
+        <label>Address</label>
+        <textarea name="companyAddress">{{ company.get('companyAddress','') }}</textarea>
+      </div>
+      <div class="field">
+        <label>Phone 1</label>
+        <input type="text" name="companyPhone" value="{{ company.get('companyPhone','') }}">
+      </div>
+      <div class="field">
+        <label>Phone 2</label>
+        <input type="text" name="companyPhone2" value="{{ company.get('companyPhone2','') }}">
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" name="companyEmail" value="{{ company.get('companyEmail','') }}">
+      </div>
+      <div class="field">
+        <label>Website</label>
+        <input type="text" name="companyWebsite" value="{{ company.get('companyWebsite','') }}" placeholder="www.example.com">
+      </div>
+      <div class="field span-2">
+        <label>Tagline</label>
+        <input type="text" name="companyTagline" value="{{ company.get('companyTagline','') }}">
+      </div>
+      <div class="field">
+        <label>Company Logo</label>
+        {% if company.get('logoFile') %}
+        <div class="row" style="margin-bottom:6px;">
+          <img src="{{ url_for('settings_bp.logo_preview', slot='company') }}" alt="Company logo" style="height:44px;width:auto;border:1px solid var(--border);border-radius:6px;padding:4px;background:#fff;">
+          <button type="submit" form="removeCompanyLogoForm" class="btn btn-ghost btn-sm"><i class="ti ti-trash"></i> Remove</button>
+        </div>
+        {% endif %}
+        <input type="file" name="logo" accept="image/png,image/jpeg">
+        <span class="hint">Shown on the left of the header on every invoice, quotation, receipt, and job sheet.{% if company.get('logoFile') %} Choose a new file to replace it.{% endif %}</span>
+      </div>
+      <div class="field">
+        <label>Member / Association Logo</label>
+        {% if company.get('memberLogoFile') %}
+        <div class="row" style="margin-bottom:6px;">
+          <img src="{{ url_for('settings_bp.logo_preview', slot='member') }}" alt="Member logo" style="height:44px;width:auto;border:1px solid var(--border);border-radius:6px;padding:4px;background:#fff;">
+          <button type="submit" form="removeMemberLogoForm" class="btn btn-ghost btn-sm"><i class="ti ti-trash"></i> Remove</button>
+        </div>
+        {% endif %}
+        <input type="file" name="member_logo" accept="image/png,image/jpeg">
+        <span class="hint">e.g. an IPCA membership badge — shown on the right of the same header, opposite the company logo.{% if company.get('memberLogoFile') %} Choose a new file to replace it.{% endif %}</span>
+      </div>
+    </div>
+  </div>
+
+  {% if company.get('logoFile') %}
+  <form id="removeCompanyLogoForm" method="POST" action="{{ url_for('settings_bp.remove_logo', slot='company') }}" data-confirm="Remove the company logo?" style="display:none;"></form>
+  {% endif %}
+  {% if company.get('memberLogoFile') %}
+  <form id="removeMemberLogoForm" method="POST" action="{{ url_for('settings_bp.remove_logo', slot='member') }}" data-confirm="Remove the member logo?" style="display:none;"></form>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-header"><h3>GST Configuration</h3></div>
+    <div class="form-grid">
+      <div class="field"><label>GST number</label><input type="text" name="gstNumber" value="{{ company.get('gstNumber','') }}"></div>
+      <div class="field"><label>PAN number</label><input type="text" name="panNumber" value="{{ company.get('panNumber','') }}"></div>
+      <div class="field"><label>MSME number</label><input type="text" name="msmeNumber" value="{{ company.get('msmeNumber','') }}"></div>
+      <div class="field"><label>HSN/SAC code</label><input type="text" name="hsnCode" value="{{ company.get('hsnCode','998531') }}"></div>
+      <div class="field"><label>CGST rate (%)</label><input type="number" step="0.1" name="cgstRate" value="{{ company.get('cgstRate','9') }}"></div>
+      <div class="field"><label>SGST rate (%)</label><input type="number" step="0.1" name="sgstRate" value="{{ company.get('sgstRate','9') }}"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h3>Invoice Settings</h3></div>
+    <div class="form-grid">
+      <div class="field"><label>Invoice prefix</label><input type="text" name="invoicePrefix" value="{{ company.get('invoicePrefix','PCT') }}"></div>
+      <div class="field"><label>Due days</label><input type="number" name="invoiceDueDays" value="{{ company.get('invoiceDueDays','30') }}"></div>
+      <div class="field span-2"><label>Bank details (shown on invoice footer)</label><textarea name="bankDetails">{{ company.get('bankDetails','') }}</textarea></div>
+      <div class="field span-2"><label>Invoice footer text</label><input type="text" name="invoiceFooter" value="{{ company.get('invoiceFooter','Thank you for your business') }}"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h3>Service Catalog &amp; Areas</h3></div>
+    <div class="field" style="margin-bottom:12px;">
+      <label>Services (comma-separated)</label>
+      <textarea name="serviceCatalog">{{ services_catalog }}</textarea>
+    </div>
+    <div class="field">
+      <label>Service areas (comma-separated)</label>
+      <textarea name="areaList">{{ areas }}</textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h3>Route Optimization</h3></div>
+    <div class="form-grid">
+      <div class="field span-2">
+        <label>Google Maps Geocoding API key</label>
+        <input type="text" name="mapsApiKey" value="{{ company.get('mapsApiKey','') }}">
+        <span class="hint">Used only for the "Look up coordinates from address" button on
+          client profiles. Route ordering itself works without a key once clients have
+          coordinates — it uses straight-line distance, not live traffic/driving data.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h3>Notification Settings</h3></div>
+    <div class="form-grid" style="margin-bottom:12px;">
+      <div class="field"><label>WhatsApp API key</label><input type="text" name="whatsappApiKey" value="{{ company.get('whatsappApiKey','') }}"></div>
+      <div class="field"><label>WhatsApp Phone ID</label><input type="text" name="whatsappPhoneId" value="{{ company.get('whatsappPhoneId','') }}"></div>
+      <div class="field"><label>SMTP server</label><input type="text" name="smtpServer" value="{{ company.get('smtpServer','') }}"></div>
+      <div class="field"><label>SMTP port</label><input type="text" name="smtpPort" value="{{ company.get('smtpPort','587') }}"></div>
+      <div class="field"><label>SMTP username</label><input type="text" name="smtpUsername" value="{{ company.get('smtpUsername','') }}"></div>
+      <div class="field"><label>SMTP password</label><input type="password" name="smtpPassword" value="{{ company.get('smtpPassword','') }}"></div>
+    </div>
+    <div class="checkbox-row" style="margin-bottom:6px;"><input type="checkbox" name="notifyVisitReminder" id="n1" {{ 'checked' if company.get('notifyVisitReminder')=='1' }}><label for="n1">Visit reminders</label></div>
+    <div class="checkbox-row" style="margin-bottom:6px;"><input type="checkbox" name="notifyAmcExpiry" id="n2" {{ 'checked' if company.get('notifyAmcExpiry')=='1' }}><label for="n2">AMC expiry alerts</label></div>
+    <div class="checkbox-row"><input type="checkbox" name="notifyPaymentDue" id="n3" {{ 'checked' if company.get('notifyPaymentDue')=='1' }}><label for="n3">Payment due reminders</label></div>
+    <p class="muted" style="font-size:11px;margin-top:10px;">
+      WhatsApp/SMTP dispatch requires valid credentials above; until configured, reminders are still
+      generated as in-app notifications only.
+    </p>
+  </div>
+
+  <button type="submit" class="btn btn-primary" style="align-self:flex-start;"><i class="ti ti-check"></i> Save Settings</button>
+</form>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Scheduling — Month{% endblock %}
+{% block page_title %}Scheduling{% endblock %}
+
+{% block content %}
+<div class="row between" style="margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+  <div class="tabs" style="margin-bottom:0;border-bottom:none;">
+    <a href="{{ url_for('scheduling_bp.week_view') }}">Week</a>
+    <a href="{{ url_for('scheduling_bp.month_view') }}" class="active">Month</a>
+    <a href="{{ url_for('scheduling_bp.agenda_view') }}">Agenda</a>
+  </div>
+  <div class="row">
+    <a href="{{ url_for('scheduling_bp.month_view', year=prev_year, month=prev_month) }}" class="btn btn-ghost btn-sm"><i class="ti ti-chevron-left"></i></a>
+    <span style="font-size:13px;font-weight:700;">{{ month_name }}</span>
+    <a href="{{ url_for('scheduling_bp.month_view', year=next_year, month=next_month) }}" class="btn btn-ghost btn-sm"><i class="ti ti-chevron-right"></i></a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="month-grid" style="margin-bottom:8px;">
+    {% for d in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] %}
+    <div class="muted" style="font-size:11px;font-weight:700;text-align:center;text-transform:uppercase;">{{ d }}</div>
+    {% endfor %}
+  </div>
+  {% for week in weeks %}
+  <div class="month-grid" style="margin-bottom:8px;">
+    {% for d in week %}
+      {% if d %}
+      <a href="{{ url_for('scheduling_bp.agenda_view', start=d.isoformat(), days=1) }}"
+         class="month-cell {{ 'today' if d.isoformat()==today }}">
+        <div class="mnum {{ 'is-today' if d.isoformat()==today }}">{{ d.day }}</div>
+        {% set c = counts.get(d.isoformat(), 0) %}
+        {% if c %}<span class="mcount">{{ c }} visit{{ 's' if c != 1 }}</span>{% endif %}
+      </a>
+      {% else %}
+      <div class="month-cell blank"></div>
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

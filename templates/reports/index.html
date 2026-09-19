@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block page_title %}Reports &amp; Analytics{% endblock %}
+
+{% block content %}
+<div class="tabs">
+  {% for t, label in [('revenue','Revenue'),('visits','Visits'),('technicians','Technicians'),('profitability','Profitability'),('amc','AMC'),('inventory','Inventory'),('leads','Leads'),('outstanding','Outstanding')] %}
+  <a href="{{ url_for('reports_bp.index', tab=t, start=start, end=end) }}" class="{{ 'active' if tab==t }}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<form method="GET" class="row" style="margin-bottom:16px;">
+  <input type="hidden" name="tab" value="{{ tab }}">
+  <input type="date" name="start" value="{{ start }}">
+  <span class="muted">to</span>
+  <input type="date" name="end" value="{{ end }}">
+  <button type="submit" class="btn btn-ghost btn-sm">Apply</button>
+  {% if tab in ['revenue','visits','outstanding'] %}
+  <a href="{{ url_for('reports_bp.export_csv', tab=tab, start=start, end=end) }}" class="btn btn-ghost btn-sm"><i class="ti ti-file-type-csv"></i> CSV</a>
+  {% endif %}
+  {% if tab == 'revenue' %}
+  <a href="{{ url_for('reports_bp.export_xlsx', tab=tab, start=start, end=end) }}" class="btn btn-ghost btn-sm"><i class="ti ti-file-type-xls"></i> Excel</a>
+  {% endif %}
+</form>
+
+{% if tab == 'revenue' %}
+<div class="grid-2" style="margin-bottom:16px;">
+  <div class="card"><div class="card-header"><h3>Billed vs Collected</h3></div><canvas id="revLineChart" height="180"></canvas></div>
+  <div class="card"><div class="card-header"><h3>Revenue by Service</h3></div><canvas id="svcBarChart" height="180"></canvas></div>
+</div>
+<div class="card">
+  <div class="card-header"><h3>Top 10 Clients by Revenue</h3></div>
+  <div class="table-wrap">
+    <table><thead><tr><th>Client</th><th>Total</th></tr></thead>
+    <tbody>{% for c in top_clients %}<tr><td>{{ c['name'] }}</td><td class="mono">₹{{ '{:,.0f}'.format(c['total']) }}</td></tr>{% else %}<tr><td colspan="2" class="muted" style="text-align:center;">No data for this range.</td></tr>{% endfor %}</tbody></table>
+  </div>
+</div>
+
+{% elif tab == 'visits' %}
+<div class="grid-2" style="margin-bottom:16px;">
+  <div class="card"><div class="card-header"><h3>Visits by Status</h3></div><canvas id="statusDoughnut" height="200"></canvas></div>
+  <div class="card"><div class="card-header"><h3>Service Frequency</h3></div><canvas id="svcFreqChart" height="200"></canvas></div>
+</div>
+<div class="card">
+  <div class="card-header"><h3>Completion Rate by Technician</h3></div>
+  <div class="table-wrap">
+    <table><thead><tr><th>Technician</th><th>Completed</th><th>Total</th><th>Rate</th></tr></thead>
+    <tbody>{% for c in completion %}<tr><td>{{ c['tech_name'] }}</td><td>{{ c['completed'] }}</td><td>{{ c['total'] }}</td><td>{{ ((c['completed']/c['total']*100)|round(1)) if c['total'] else 0 }}%</td></tr>{% else %}<tr><td colspan="4" class="muted" style="text-align:center;">No data for this range.</td></tr>{% endfor %}</tbody></table>
+  </div>
+</div>
+
+{% elif tab == 'technicians' %}
+<div class="table-wrap">
+  <table><thead><tr><th>Technician</th><th>Jobs</th><th>Completed %</th><th>Incomplete</th><th>Complaints</th><th>Follow-ups</th><th>Avg. Rating</th></tr></thead>
+  <tbody>{% for r in tech_rows %}<tr>
+    <td>{{ r.tech }}</td>
+    <td>{{ r.total_jobs }}</td>
+    <td>{% if r.completion_rate is not none %}<span class="{{ 'text-danger' if r.completion_rate < 80 }}">{{ r.completion_rate }}%</span>{% else %}—{% endif %}</td>
+    <td>{{ r.incomplete_count }}</td>
+    <td>{% if r.complaint_count %}<span class="text-danger">{{ r.complaint_count }}</span>{% else %}0{% endif %}</td>
+    <td>{{ r.followup_count }}</td>
+    <td>{{ r.avg_rating or '—' }}{% if r.avg_rating %} ★{% endif %}</td>
+  </tr>{% else %}<tr><td colspan="7" class="muted" style="text-align:center;">No technicians configured.</td></tr>{% endfor %}</tbody></table>
+</div>
+<p class="muted" style="font-size:11.5px;margin-top:10px;">"Completed %" and "Incomplete" come from what each job card recorded as its outcome, not just whether one was filed — a visit where the technician couldn't gain access still shows up here as incomplete.</p>
+
+{% elif tab == 'profitability' %}
+{% if not has_any_cost_data %}
+<div class="notes-box" style="margin-bottom:14px;">
+  <i class="ti ti-info-circle"></i> No chemicals have a unit cost set yet, so "Cost" below will show ₹0 for everyone — profit will just equal revenue. Add a unit cost to your inventory items (Inventory → edit an item) to make this meaningful.
+</div>
+{% endif %}
+<div class="table-wrap">
+  <table><thead><tr><th>Client</th><th>Revenue</th><th>Chemical Cost</th><th>Profit</th><th>Margin</th></tr></thead>
+  <tbody>{% for p in profitability %}<tr>
+    <td>{{ p.client }}</td>
+    <td class="mono">₹{{ '{:,.0f}'.format(p.revenue) }}</td>
+    <td class="mono">₹{{ '{:,.0f}'.format(p.cost) }}</td>
+    <td class="mono {{ 'text-danger' if p.profit < 0 }}">₹{{ '{:,.0f}'.format(p.profit) }}</td>
+    <td>{% if p.margin is not none %}<span class="{{ 'text-danger' if p.margin < 30 }}">{{ p.margin }}%</span>{% else %}—{% endif %}</td>
+  </tr>{% else %}<tr><td colspan="5" class="muted" style="text-align:center;">No invoiced revenue in this date range.</td></tr>{% endfor %}</tbody></table>
+</div>
+<p class="muted" style="font-size:11.5px;margin-top:10px;">Chemical cost uses each item's current unit cost, not what it cost at the time it was used — treat this as an approximation, especially over a long date range where prices may have changed.</p>
+
+{% elif tab == 'amc' %}
+<div class="kpi-row" style="grid-template-columns:repeat(2,1fr);margin-bottom:16px;">
+  <div class="kpi-card"><div class="kpi-label">Active AMC count</div><div class="kpi-value">{{ active['c'] }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Active AMC value</div><div class="kpi-value">₹{{ '{:,.0f}'.format(active['total']) }}</div></div>
+</div>
+<div class="card">
+  <div class="card-header"><h3>Renewal Forecast (next 90 days)</h3></div>
+  <div class="table-wrap">
+    <table><thead><tr><th>Client</th><th>Contract #</th><th>End Date</th></tr></thead>
+    <tbody>{% for a in expiring %}<tr><td>{{ a['client_name'] }}</td><td class="mono">{{ a['contract_number'] }}</td><td>{{ a['end_date'] }}</td></tr>{% else %}<tr><td colspan="3" class="muted" style="text-align:center;">Nothing expiring soon.</td></tr>{% endfor %}</tbody></table>
+  </div>
+</div>
+
+{% elif tab == 'inventory' %}
+<div class="grid-2" style="margin-bottom:16px;">
+  <div class="card"><div class="card-header"><h3>Top 5 Chemicals Consumed</h3></div><canvas id="consumptionChart" height="200"></canvas></div>
+  <div class="card">
+    <div class="card-header"><h3>Stock Overview</h3></div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Item</th><th>Stock</th><th>Min</th></tr></thead>
+      <tbody>{% for it in items %}<tr class="{{ 'text-danger' if it['current_stock'] < it['minimum_stock'] }}"><td>{{ it['name'] }}</td><td>{{ it['current_stock']|round(1) }}</td><td>{{ it['minimum_stock']|round(1) }}</td></tr>{% endfor %}</tbody></table>
+    </div>
+  </div>
+</div>
+
+{% elif tab == 'leads' %}
+<div class="kpi-row kpi-row-4" style="margin-bottom:16px;">
+  <div class="kpi-card"><div class="kpi-label">Total Leads</div><div class="kpi-value">{{ totals['total'] or 0 }}</div></div>
+  <div class="kpi-card" style="border-top-color:var(--success);"><div class="kpi-label">Won</div><div class="kpi-value">{{ totals['won'] or 0 }}</div></div>
+  <div class="kpi-card danger"><div class="kpi-label">Lost</div><div class="kpi-value">{{ totals['lost'] or 0 }}</div></div>
+  <div class="kpi-card info"><div class="kpi-label">Open Pipeline Value</div><div class="kpi-value">₹{{ '{:,.0f}'.format(pipeline_value) }}</div></div>
+</div>
+<div class="grid-2" style="margin-bottom:16px;">
+  <div class="card"><div class="card-header"><h3>Leads by Stage</h3></div><canvas id="stageChart" height="200"></canvas></div>
+  <div class="card">
+    <div class="card-header"><h3>Conversion by Source</h3></div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Source</th><th>Leads</th><th>Won</th><th>Rate</th></tr></thead>
+      <tbody>{% for s in by_source %}<tr><td>{{ s['source'] }}</td><td>{{ s['n'] }}</td><td>{{ s['won'] }}</td><td>{{ ((s['won']/s['n']*100)|round(1)) if s['n'] else 0 }}%</td></tr>{% else %}<tr><td colspan="4" class="muted" style="text-align:center;">No leads in this range.</td></tr>{% endfor %}</tbody></table>
+    </div>
+  </div>
+</div>
+{% if lost_reasons %}
+<div class="card">
+  <div class="card-header"><h3>Top Reasons Lost</h3></div>
+  <div class="table-wrap">
+    <table><thead><tr><th>Reason</th><th>Count</th></tr></thead>
+    <tbody>{% for r in lost_reasons %}<tr><td>{{ r['lost_reason'] }}</td><td>{{ r['n'] }}</td></tr>{% endfor %}</tbody></table>
+  </div>
+</div>
+{% endif %}
+
+{% elif tab == 'outstanding' %}
+<div class="grid-2" style="margin-bottom:16px;">
+  <div class="card"><div class="card-header"><h3>Ageing Buckets</h3></div><canvas id="ageingChart" height="200"></canvas></div>
+  <div class="card">
+    <div class="card-header"><h3>Outstanding by Client</h3></div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Client</th><th>Balance</th></tr></thead>
+      <tbody>{% for name, amt in by_client %}<tr><td>{{ name }}</td><td class="mono text-danger">₹{{ '{:,.0f}'.format(amt) }}</td></tr>{% else %}<tr><td colspan="2" class="muted" style="text-align:center;">Nothing outstanding.</td></tr>{% endfor %}</tbody></table>
+    </div>
+  </div>
+</div>
+<div class="kpi-card danger" style="max-width:280px;"><div class="kpi-label">Total Outstanding</div><div class="kpi-value">₹{{ '{:,.0f}'.format(total_outstanding) }}</div></div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="{{ static_url('js/charts.js') }}"></script>
+<script>
+{% if tab == 'revenue' %}
+renderLineChart('revLineChart',
+  {{ monthly|map(attribute='ym')|list|tojson }},
+  [
+    { label: 'Billed', data: {{ monthly|map(attribute='billed')|list|tojson }}, borderColor: '#0b5c33', backgroundColor: 'rgba(11,92,51,.15)', fill: true, tension: .3 },
+    { label: 'Collected', data: {{ monthly|map(attribute='collected')|list|tojson }}, borderColor: '#45647e', backgroundColor: 'rgba(69,100,126,.12)', fill: true, tension: .3 },
+  ]);
+renderHorizontalBar('svcBarChart', {{ by_service|map(attribute='service')|list|tojson }}, {{ by_service|map(attribute='total')|list|tojson }}, '#0b5c33');
+
+{% elif tab == 'visits' %}
+renderDoughnutChart('statusDoughnut', {{ by_status|map(attribute='status')|list|tojson }}, {{ by_status|map(attribute='n')|list|tojson }},
+  ['#e2711d','#45647e','#2f7a4f','#8a9990','#785ab4']);
+renderHorizontalBar('svcFreqChart', {{ svc_counts|map(attribute=0)|list|tojson }}, {{ svc_counts|map(attribute=1)|list|tojson }}, '#45647e');
+
+{% elif tab == 'inventory' %}
+renderHorizontalBar('consumptionChart', {{ consumption|map(attribute='name')|list|tojson }}, {{ consumption|map(attribute='used')|list|tojson }}, '#e2711d');
+
+{% elif tab == 'leads' %}
+renderDoughnutChart('stageChart', {{ by_stage|map(attribute='stage')|list|tojson }}, {{ by_stage|map(attribute='n')|list|tojson }},
+  ['#45647e','#e2711d','#785ab4','#2f7a4f','#8a9990']);
+
+{% elif tab == 'outstanding' %}
+renderDoughnutChart('ageingChart', {{ buckets.keys()|list|tojson }}, {{ buckets.values()|list|tojson }},
+  ['#2f7a4f','#e2711d','#b3402a','#7a2a18']);
+{% endif %}
+</script>
+{% endblock %}

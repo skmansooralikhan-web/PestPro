@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ route['name'] }}{% endblock %}
+{% block page_title %}Route — {{ route['name'] }}{% endblock %}
+
+{% block content %}
+<div class="row between" style="margin-bottom:14px;">
+  <span class="muted" style="font-size:12.5px;">{{ route['area'] or '' }}{% if route['assigned_tech'] %} · Assigned to {{ route['assigned_tech'] }}{% endif %}</span>
+  <form method="POST" action="{{ url_for('scheduling_bp.optimize_route_view', route_id=route['id']) }}">
+    <button type="submit" class="btn btn-primary btn-sm"><i class="ti ti-route-2"></i> Optimize Stop Order</button>
+  </form>
+</div>
+
+{% if missing_coords %}
+<div class="alert-banner warn">
+  <i class="ti ti-map-pin-off"></i>
+  {{ missing_coords|length }} client(s) on this route have no coordinates yet, so they
+  can't be placed by the optimizer — they'll stay at the end of the route until you
+  add coordinates on their client profile (Edit → "Look up coordinates from address",
+  or enter latitude/longitude manually).
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header"><h3>Stop Order</h3></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Client</th><th>Area</th><th>Coordinates</th></tr></thead>
+      <tbody>
+      {% for c in clients %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td><a href="{{ url_for('clients_bp.index', client=c['id']) }}">{{ c['name'] }}</a></td>
+          <td>{{ c['area'] or '—' }}</td>
+          <td class="mono" style="font-size:11.5px;">
+            {% if c['latitude'] and c['longitude'] %}
+              {{ '%.5f'|format(c['latitude']) }}, {{ '%.5f'|format(c['longitude']) }}
+            {% else %}
+              <span class="badge badge-amber">Not geocoded</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}<tr><td colspan="4" class="muted" style="text-align:center;padding:28px 20px;"><i class="ti ti-route" style="font-size:24px;opacity:.35;display:block;margin-bottom:6px;"></i>No clients on this route.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="row" style="margin-top:14px;">
+  <form method="POST" action="{{ url_for('scheduling_bp.schedule_route', route_id=route['id']) }}" class="row">
+    <input type="date" name="scheduled_date" required>
+    <button type="submit" class="btn btn-primary btn-sm">Schedule All (in this order)</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Inventory{% endblock %}
+{% block page_title %}Inventory &amp; Chemicals{% endblock %}
+
+{% block content %}
+<div class="row wrap" style="margin-bottom:14px;gap:10px;">
+  <a href="{{ url_for('inventory_bp.index', alert='low') }}" class="kpi-card danger" style="text-decoration:none;flex:1;min-width:160px;">
+    <div class="kpi-label">Low Stock</div><div class="kpi-value">{{ low_count }}</div>
+  </a>
+  <a href="{{ url_for('inventory_bp.index', alert='expiring') }}" class="kpi-card warn" style="text-decoration:none;flex:1;min-width:160px;">
+    <div class="kpi-label">Expiring Soon</div><div class="kpi-value">{{ expiring_count }}</div>
+  </a>
+  <a href="{{ url_for('inventory_bp.index', alert='expired') }}" class="kpi-card" style="text-decoration:none;flex:1;min-width:160px;border-top-color:#7c3aed;">
+    <div class="kpi-label">Expired</div><div class="kpi-value">{{ expired_count }}</div>
+  </a>
+</div>
+
+<div class="row between" style="margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+  <form method="GET" class="row">
+    <select name="category" onchange="this.form.submit()">
+      <option value="">All categories</option>
+      {% for c in categories %}<option value="{{ c }}" {{ 'selected' if category==c }}>{{ c }}</option>{% endfor %}
+    </select>
+    {% if alert %}<a href="{{ url_for('inventory_bp.index') }}" class="btn btn-ghost btn-sm">Clear filter</a>{% endif %}
+  </form>
+  <a href="{{ url_for('inventory_bp.new') }}" class="btn btn-primary"><i class="ti ti-plus"></i> New Item</a>
+</div>
+
+<div class="table-wrap desktop-table">
+  <table>
+    <thead><tr><th>Item</th><th>Category</th><th>Stock</th><th>Min</th><th>Expiry</th><th>Supplier</th><th></th></tr></thead>
+    <tbody>
+    {% for it in items %}
+      {% set is_low = it['current_stock'] < it['minimum_stock'] %}
+      {% set is_expired = it['expiry_date'] and it['expiry_date'] < today %}
+      <tr style="{{ 'background:var(--danger-dim);' if is_low or is_expired }}">
+        <td><strong>{{ it['name'] }}</strong>{% if it['batch_number'] %}<br><span class="muted" style="font-size:11px;">Batch {{ it['batch_number'] }}</span>{% endif %}
+          {% if it['msds_file'] %}<br><a href="javascript:void(0)" onclick="showPdfPreview('{{ url_for('inventory_bp.msds_download', item_id=it['id']) }}', 'MSDS-{{ it['name']|replace(' ', '-') }}.pdf', 'MSDS — {{ it['name'] }}')" class="badge badge-blue" style="margin-top:3px;"><i class="ti ti-file-text"></i> MSDS</a>{% endif %}
+        </td>
+        <td>{{ it['category'] or '—' }}</td>
+        <td style="min-width:110px;">
+          <span class="mono {{ 'text-danger' if is_low }}">{{ it['current_stock']|round(2) }} {{ it['unit'] }}</span>
+          {% set stock_pct = ((it['current_stock'] / (it['minimum_stock'] * 2)) * 100) if it['minimum_stock'] else 100 %}
+          <div class="progress-bar" style="margin-top:4px;height:4px;">
+            <div style="width:{{ [stock_pct, 100]|min }}%;{{ 'background:var(--danger);' if is_low }}"></div>
+          </div>
+        </td>
+        <td class="mono muted">{{ it['minimum_stock']|round(2) }}</td>
+        <td class="{{ 'text-danger' if is_expired }}">{{ it['expiry_date'] or '—' }}</td>
+        <td>{{ it['supplier'] or '—' }}</td>
+        <td class="row">
+          <a href="{{ url_for('inventory_bp.edit', item_id=it['id']) }}" class="btn btn-ghost btn-sm btn-icon"><i class="ti ti-edit"></i></a>
+          <button type="button" class="btn btn-ghost btn-sm btn-icon" data-modal-open="adjust-{{ it['id'] }}"><i class="ti ti-adjustments"></i></button>
+          <a href="{{ url_for('inventory_bp.transactions', item_id=it['id']) }}" class="btn btn-ghost btn-sm btn-icon"><i class="ti ti-history"></i></a>
+        </td>
+      </tr>
+    {% else %}<tr><td colspan="7" class="muted" style="text-align:center;padding:32px 20px;"><i class="ti ti-package" style="font-size:28px;opacity:.35;display:block;margin-bottom:6px;"></i>No inventory items yet.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="mobile-cards">
+  {% for it in items %}
+  {% set is_low = it['current_stock'] < it['minimum_stock'] %}
+  {% set is_expired = it['expiry_date'] and it['expiry_date'] < today %}
+  {% set stock_pct = ((it['current_stock'] / (it['minimum_stock'] * 2)) * 100) if it['minimum_stock'] else 100 %}
+  <div class="record-card" style="{{ 'background:var(--danger-dim);' if is_low or is_expired }}">
+    <div class="row between" style="align-items:flex-start;">
+      <div>
+        <strong>{{ it['name'] }}</strong>
+        <div class="muted" style="font-size:12px;margin-top:2px;">{{ it['category'] or '—' }}{% if it['batch_number'] %} · Batch {{ it['batch_number'] }}{% endif %}</div>
+      </div>
+      <div class="row" style="gap:6px;">
+        <a href="{{ url_for('inventory_bp.edit', item_id=it['id']) }}" class="btn btn-ghost btn-sm btn-icon"><i class="ti ti-edit"></i></a>
+        <button type="button" class="btn btn-ghost btn-sm btn-icon" data-modal-open="adjust-{{ it['id'] }}"><i class="ti ti-adjustments"></i></button>
+      </div>
+    </div>
+    <div style="margin-top:10px;">
+      <div class="row between">
+        <span class="mono {{ 'text-danger' if is_low }}" style="font-weight:700;">{{ it['current_stock']|round(2) }} {{ it['unit'] }}</span>
+        <span class="muted" style="font-size:12px;">min {{ it['minimum_stock']|round(2) }}</span>
+      </div>
+      <div class="progress-bar" style="margin-top:5px;height:5px;">
+        <div style="width:{{ [stock_pct, 100]|min }}%;{{ 'background:var(--danger);' if is_low }}"></div>
+      </div>
+    </div>
+    <div class="row between" style="margin-top:10px;font-size:12px;">
+      <span class="{{ 'text-danger' if is_expired }}">{{ it['expiry_date'] and 'Exp ' + it['expiry_date'] or 'No expiry set' }}</span>
+      <span class="muted">{{ it['supplier'] or '—' }}</span>
+    </div>
+    {% if it['msds_file'] %}
+    <a href="javascript:void(0)" onclick="showPdfPreview('{{ url_for('inventory_bp.msds_download', item_id=it['id']) }}', 'MSDS-{{ it['name']|replace(' ', '-') }}.pdf', 'MSDS — {{ it['name'] }}')" class="badge badge-blue" style="margin-top:8px;"><i class="ti ti-file-text"></i> MSDS</a>
+    {% endif %}
+    <a href="{{ url_for('inventory_bp.transactions', item_id=it['id']) }}" class="muted" style="display:block;font-size:12px;margin-top:8px;">View transaction history →</a>
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="ti ti-package"></i>No inventory items yet.</div>
+  {% endfor %}
+</div>
+
+{% for it in items %}
+<div class="modal-overlay" id="adjust-{{ it['id'] }}">
+  <div class="modal-box" style="max-width:400px;">
+    <div class="modal-head"><strong>Adjust stock — {{ it['name'] }}</strong><button data-modal-close class="btn btn-icon btn-ghost btn-sm"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <form method="POST" action="{{ url_for('inventory_bp.adjust', item_id=it['id']) }}" class="stack">
+        <div class="field">
+          <label>Transaction type</label>
+          <select name="txn_type">
+            <option value="IN">IN — stock received</option>
+            <option value="OUT">OUT — manual usage</option>
+            <option value="ADJUST">ADJUST — correction/damage</option>
+            <option value="EXPIRE">EXPIRE — write-off</option>
+          </select>
+        </div>
+        <div class="field"><label>Quantity ({{ it['unit'] }})</label><input type="number" step="0.01" min="0.01" name="quantity" required></div>
+        <div class="field"><label>Reference / reason</label><input type="text" name="reference"></div>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

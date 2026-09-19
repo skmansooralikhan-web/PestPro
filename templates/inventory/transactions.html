@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ item['name'] }} — Transactions{% endblock %}
+{% block page_title %}Stock Transactions — {{ item['name'] }}{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom:14px;">
+  <div class="row between">
+    <span>Current stock</span>
+    <strong class="mono">{{ item['current_stock']|round(2) }} {{ item['unit'] }}</strong>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Date</th><th>Type</th><th>Quantity</th><th>Balance After</th><th>Reference</th><th>By</th></tr></thead>
+    <tbody>
+    {% for t in txns %}
+      <tr>
+        <td>{{ t['created_at'][:16] }}</td>
+        <td><span class="badge badge-{{ {'IN':'green','OUT':'amber','ADJUST':'blue','EXPIRE':'red'}[t['txn_type']] }}">{{ t['txn_type'] }}</span></td>
+        <td class="mono">{{ t['quantity']|round(2) }}</td>
+        <td class="mono">{{ t['balance']|round(2) }}</td>
+        <td>{{ t['reference'] or '—' }}</td>
+        <td>{{ t['done_by'] or '—' }}</td>
+      </tr>
+    {% else %}<tr><td colspan="6" class="muted" style="text-align:center;padding:32px 20px;"><i class="ti ti-list" style="font-size:28px;opacity:.35;display:block;margin-bottom:6px;"></i>No transactions yet.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

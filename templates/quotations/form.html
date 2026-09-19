@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}New Quotation{% endblock %}
+{% block page_title %}New Quotation{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:820px;">
+  <div class="notes-box" style="margin-bottom:16px;">
+    Preparing a quotation for <strong>{{ (client['name'] if client else lead['name']) if (client or lead) else 'Unknown' }}</strong>
+    {% if lead and not client %} (lead — not yet a client){% endif %}
+  </div>
+
+  <form method="POST" id="quoteForm">
+    <input type="hidden" name="lead_id" value="{{ lead['id'] if lead else '' }}">
+    <input type="hidden" name="client_id" value="{{ client['id'] if client else '' }}">
+    <div class="form-grid">
+      <div class="field">
+        <label>Quotation date</label>
+        <input type="date" name="quote_date" value="{{ today }}">
+      </div>
+      <div class="field">
+        <label>Valid until</label>
+        <input type="date" name="valid_until" value="{{ default_valid }}">
+      </div>
+      <div class="field">
+        <label>CGST %</label>
+        <input type="number" name="cgst_rate" id="cgstRateField" step="0.01" min="0" max="100" value="{{ default_cgst }}" oninput="updateSubtotal()">
+      </div>
+      <div class="field">
+        <label>SGST %</label>
+        <input type="number" name="sgst_rate" id="sgstRateField" step="0.01" min="0" max="100" value="{{ default_sgst }}" oninput="updateSubtotal()">
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <h4 style="font-size:13px;margin-bottom:8px;">Line Items</h4>
+    <div id="lineItems" class="stack" style="margin-bottom:8px;"></div>
+    <button type="button" class="btn btn-ghost btn-sm" onclick="addLineItem()"><i class="ti ti-plus"></i> Add line item</button>
+
+    <div class="row" style="justify-content:flex-end;margin-top:14px;">
+      <div style="width:240px;font-size:13px;" class="stack">
+        <div class="row between"><span class="muted">Subtotal</span><span id="subtotalPreview">₹0</span></div>
+        <div class="row between"><span class="muted" id="cgstLabel">CGST</span><span id="cgstPreview">₹0</span></div>
+        <div class="row between"><span class="muted" id="sgstLabel">SGST</span><span id="sgstPreview">₹0</span></div>
+        <div class="row between" style="font-weight:800;font-size:15px;border-top:1px solid var(--border);padding-top:6px;">
+          <span>Estimated Total</span><strong id="totalPreview">₹0</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="field">
+      <label>Notes</label>
+      <textarea name="notes" placeholder="Terms, exclusions, special conditions…"></textarea>
+    </div>
+
+    <div class="row" style="margin-top:16px;">
+      <button type="submit" class="btn btn-primary"><i class="ti ti-check"></i> Create Quotation</button>
+      <a href="{{ url_for('leads_bp.index') if lead else url_for('clients_bp.index', client=client['id'] if client else None) }}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const servicesCatalog = {{ services_catalog|tojson }};
+let itemCount = 0;
+
+function addLineItem() {
+  itemCount++;
+  const container = document.getElementById('lineItems');
+  const div = document.createElement('div');
+  div.className = 'form-grid cols-3 line-item-row';
+  div.style.alignItems = 'end';
+  div.innerHTML = `
+    <div class="field">
+      <label>Service</label>
+      <input type="text" name="item_service" list="svcList${itemCount}">
+      <datalist id="svcList${itemCount}">${servicesCatalog.map(s => `<option value="${s}">`).join('')}</datalist>
+    </div>
+    <div class="field"><label>Description</label><input type="text" name="item_description"></div>
+    <div class="field">
+      <label>Qty × Rate (₹)</label>
+      <div class="row">
+        <input type="number" name="item_qty" value="1" min="0.01" step="0.01" style="width:70px;" oninput="updateSubtotal()">
+        <input type="number" name="item_rate" value="0" min="0" step="0.01" oninput="updateSubtotal()">
+        <button type="button" onclick="this.closest('.line-item-row').remove(); updateSubtotal();" class="btn btn-ghost btn-sm"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`;
+  container.appendChild(div);
+}
+
+function updateSubtotal() {
+  let subtotal = 0;
+  document.querySelectorAll('.line-item-row').forEach(row => {
+    const qty = parseFloat(row.querySelector('[name=item_qty]').value) || 0;
+    const rate = parseFloat(row.querySelector('[name=item_rate]').value) || 0;
+    subtotal += qty * rate;
+  });
+  const cgstRate = parseFloat(document.getElementById('cgstRateField').value) || 0;
+  const sgstRate = parseFloat(document.getElementById('sgstRateField').value) || 0;
+  const cgstAmt = subtotal * cgstRate / 100;
+  const sgstAmt = subtotal * sgstRate / 100;
+  const total = subtotal + cgstAmt + sgstAmt;
+
+  const fmt = (n) => '₹' + n.toLocaleString('en-IN', {maximumFractionDigits: 2});
+  document.getElementById('subtotalPreview').textContent = fmt(subtotal);
+  document.getElementById('cgstLabel').textContent = `CGST @ ${cgstRate}%`;
+  document.getElementById('sgstLabel').textContent = `SGST @ ${sgstRate}%`;
+  document.getElementById('cgstPreview').textContent = fmt(cgstAmt);
+  document.getElementById('sgstPreview').textContent = fmt(sgstAmt);
+  document.getElementById('totalPreview').textContent = fmt(total);
+}
+
+document.addEventListener('DOMContentLoaded', () => { addLineItem(); updateSubtotal(); });
+</script>
+{% endblock %}

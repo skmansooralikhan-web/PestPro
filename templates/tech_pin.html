@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block guest_content %}
+<div class="login-wrap" style="align-items:flex-start;padding-top:50px;">
+  <div class="login-card" style="max-width:380px;">
+    <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:10px;">
+      {% if user['photo'] %}
+      <img src="{{ url_for('auth_bp.tech_photo', user_id=user['id']) }}" alt="" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid var(--pine-pale);">
+      {% else %}
+      <div class="tech-photo-initial" style="width:72px;height:72px;font-size:28px;">{{ (user['full_name'] or user['username'])[:1]|upper }}</div>
+      {% endif %}
+      <strong style="font-size:17px;margin-top:10px;">{{ user['full_name'] or user['username'] }}</strong>
+    </div>
+    <p class="muted" style="text-align:center;font-size:14px;margin-bottom:18px;">Enter your PIN</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, msg in messages %}
+          <div class="alert-banner {{ 'danger' if category=='error' else 'warn' }}">
+            <i class="ti ti-alert-triangle"></i><span>{{ msg }}</span>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="pin-dots" id="pinDots">
+      <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+
+    <form method="POST" id="pinForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="pin" id="pinValue">
+    </form>
+
+    <div class="numpad">
+      {% for n in [1,2,3,4,5,6,7,8,9] %}
+      <button type="button" class="numpad-btn" onclick="pressDigit('{{ n }}')">{{ n }}</button>
+      {% endfor %}
+      <button type="button" class="numpad-btn numpad-clear" onclick="clearPin()"><i class="ti ti-backspace"></i></button>
+      <button type="button" class="numpad-btn" onclick="pressDigit('0')">0</button>
+      <a href="{{ url_for('auth_bp.tech_login') }}" class="numpad-btn numpad-back"><i class="ti ti-arrow-left"></i></a>
+    </div>
+  </div>
+</div>
+
+<script>
+  let pin = '';
+  function renderDots() {
+    document.querySelectorAll('.pin-dot').forEach((d, i) => {
+      d.classList.toggle('filled', i < pin.length);
+    });
+  }
+  function pressDigit(d) {
+    if (pin.length >= 4) return;
+    pin += d;
+    renderDots();
+    if (pin.length === 4) {
+      document.getElementById('pinValue').value = pin;
+      setTimeout(() => document.getElementById('pinForm').submit(), 150);
+    }
+  }
+  function clearPin() {
+    pin = pin.slice(0, -1);
+    renderDots();
+  }
+</script>
+{% endblock %}

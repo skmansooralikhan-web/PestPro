@@ -1,0 +1,9 @@
+DejaVu Sans (Regular and Bold) is bundled here so PDF output renders
+correctly — including the ₹ (Indian Rupee) symbol, which the standard 14
+PDF base fonts (Helvetica, Times, Courier) do not include at all — no
+matter what fonts happen to be installed on the machine running the app.
+
+DejaVu fonts are released under a free, permissive license (based on the
+Bitstream Vera license) that explicitly allows embedding and
+redistribution, with or without modification. Full license text:
+https://dejavu-fonts.github.io/License.html

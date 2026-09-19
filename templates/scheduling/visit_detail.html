@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Visit — {{ visit['client_name'] }}{% endblock %}
+{% block page_title %}Visit Detail{% endblock %}
+
+{% block content %}
+<div class="grid-2" style="grid-template-columns: 1fr 300px; align-items:start;">
+  <div class="card">
+    <div class="row between" style="margin-bottom:10px;">
+      <h3>{{ visit['client_name'] }}</h3>
+      <span class="badge badge-{{ {'Scheduled':'amber','In Progress':'blue','Completed':'green','Cancelled':'gray','Rescheduled':'purple'}[visit['status']] }}">{{ visit['status'] }}</span>
+    </div>
+    <div class="grid-2" style="font-size:13px;margin-bottom:12px;">
+      <div><span class="muted">Date</span><br><strong>{{ visit['scheduled_date'] }}</strong></div>
+      <div><span class="muted">Time</span><br><strong>{{ visit['time_slot'] or '—' }}</strong></div>
+      <div><span class="muted">Technician</span><br><strong>{{ visit['tech_name'] or 'Unassigned' }}</strong></div>
+      <div><span class="muted">Services</span><br><strong>{{ (visit['services']|from_json)|join(', ') or '—' }}</strong></div>
+      <div><span class="muted">Phone</span><br><strong>{{ visit['client_phone'] }}</strong></div>
+      <div><span class="muted">Area</span><br><strong>{{ visit['client_area'] or '—' }}</strong></div>
+    </div>
+    <div><span class="muted" style="font-size:12px;">Address</span><br><span style="font-size:13px;">{{ visit['client_address'] or '—' }}</span></div>
+    {% if visit['visit_notes'] %}<div class="notes-box" style="margin-top:12px;"><i class="ti ti-note"></i> {{ visit['visit_notes'] }}</div>{% endif %}
+    {% if visit['client_notes'] %}<div class="notes-box" style="margin-top:8px;"><i class="ti ti-alert-triangle"></i> {{ visit['client_notes'] }}</div>{% endif %}
+
+    <div class="row" style="margin-top:18px;flex-wrap:wrap;">
+      {% if current_user.role != 'technician' %}
+        <a href="{{ url_for('scheduling_bp.edit_visit', visit_id=visit['id']) }}" class="btn btn-ghost btn-sm"><i class="ti ti-edit"></i> Edit</a>
+        {% if visit['status'] not in ['Completed','Cancelled'] %}
+        <form method="POST" action="{{ url_for('scheduling_bp.cancel_visit', visit_id=visit['id']) }}" data-confirm="Cancel this visit?">
+          <button type="submit" class="btn btn-danger btn-sm"><i class="ti ti-x"></i> Cancel Visit</button>
+        </form>
+        {% endif %}
+      {% endif %}
+      {% if job_card %}
+        <a href="{{ url_for('jobcards_bp.detail', job_card_id=job_card['id']) }}" class="btn btn-primary btn-sm"><i class="ti ti-clipboard-check"></i> View Job Card</a>
+      {% elif visit['status'] != 'Cancelled' %}
+        <a href="{{ url_for('jobcards_bp.start', visit_id=visit['id']) }}" class="btn btn-primary btn-sm"><i class="ti ti-clipboard-plus"></i> Start Job Card</a>
+      {% endif %}
+      <a href="{{ url_for('clients_bp.index', client=visit['client_id']) }}" class="btn btn-ghost btn-sm"><i class="ti ti-user"></i> Client Profile</a>
+      {% if current_user.role != 'technician' %}
+      <button type="button" class="btn btn-ghost btn-sm" onclick="showPdfPreview('{{ url_for('clients_bp.job_sheet', client_id=visit['client_id']) }}', 'job-sheet-{{ visit['client_name']|replace(' ', '-') }}.pdf', 'Job Sheet — {{ visit['client_name'] }}')"><i class="ti ti-printer"></i> Print Job Sheet</button>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h3>Feedback Link</h3></div>
+    <p class="muted" style="font-size:12px;">Share this link with the client after the visit to collect a rating (no login required):</p>
+    <input type="text" readonly value="{{ request.host_url }}feedback/submit/{{ visit['id'] }}" onclick="this.select()" style="font-size:11px;">
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}My Jobs{% endblock %}
+{% block page_title %}My Jobs{% endblock %}
+
+{% block content %}
+<div class="row between" style="margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+  <div class="row" id="connStatus">
+    <span class="badge badge-green" id="onlineBadge" style="font-size:12.5px;padding:5px 12px;"><i class="ti ti-wifi"></i> Online</span>
+    <span class="badge badge-amber" id="offlineBadge" style="display:none;font-size:12.5px;padding:5px 12px;"><i class="ti ti-wifi-off"></i> Offline — saving on this phone</span>
+  </div>
+  <button type="button" class="btn btn-ghost btn-sm" id="syncNowBtn" onclick="manualSync()">
+    <i class="ti ti-refresh"></i> <span id="syncBtnLabel">Sync Now</span>
+    <span class="badge badge-amber" id="pendingBadge" style="display:none;margin-left:4px;">0</span>
+  </button>
+</div>
+
+<div class="card" style="margin-bottom:18px;background:var(--pine-deep);color:#fff;border:none;">
+  <div class="row between">
+    <div>
+      <div style="font-size:13px;color:#9fc2ad;font-weight:700;">Today · {{ today }}</div>
+      <div style="font-size:34px;font-weight:800;margin-top:2px;">{{ today_visits|length }} {{ 'Job' if today_visits|length == 1 else 'Jobs' }}</div>
+    </div>
+    <i class="ti ti-truck" style="font-size:44px;color:#f5a862;opacity:.9;"></i>
+  </div>
+</div>
+
+<div class="stack" style="margin-bottom:26px;" id="todayVisits">
+  {% for v in today_visits %}
+  {% set border_color = {'Scheduled':'var(--warn)','In Progress':'var(--info)','Completed':'var(--success)','Cancelled':'var(--border)','Rescheduled':'#785ab4'}[v['status']] %}
+  <div class="card" data-visit-id="{{ v['id'] }}" style="border-left:5px solid {{ border_color }};padding:16px;">
+    <a href="{{ url_for('scheduling_bp.view_visit', visit_id=v['id']) }}" class="row" style="gap:12px;">
+      <div style="width:44px;height:44px;border-radius:50%;background:var(--pine-pale);color:var(--pine);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="ti ti-home" style="font-size:20px;"></i>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <strong style="font-size:16px;">{{ v['client_name'] }}</strong>
+        <div class="muted" style="font-size:12.5px;margin-top:2px;"><i class="ti ti-map-pin"></i> {{ v['client_area'] or 'No area set' }} &nbsp; <i class="ti ti-clock"></i> {{ v['time_slot'] or 'Any time' }}</div>
+      </div>
+      <span class="badge badge-{{ {'Scheduled':'amber','In Progress':'blue','Completed':'green','Cancelled':'gray','Rescheduled':'purple'}[v['status']] }}" id="statusBadge-{{ v['id'] }}" style="font-size:11.5px;">{{ v['status'] }}</span>
+    </a>
+    {% if v['status'] not in ['Completed','Cancelled'] %}
+    <a href="{{ url_for('jobcards_bp.start', visit_id=v['id']) }}" class="btn btn-primary" style="margin-top:14px;width:100%;justify-content:center;padding:13px;font-size:14.5px;" data-cache-url="{{ url_for('jobcards_bp.start', visit_id=v['id']) }}">
+      <i class="ti ti-clipboard-plus" style="font-size:18px;"></i> Start Job Card
+    </a>
+    {% elif v['status'] == 'Completed' and v['job_card_id'] %}
+    <a href="{{ url_for('jobcards_bp.pdf', job_card_id=v['job_card_id']) }}" target="_blank" class="btn btn-ghost" style="margin-top:14px;width:100%;justify-content:center;padding:13px;font-size:14.5px;">
+      <i class="ti ti-printer" style="font-size:18px;"></i> Print for Customer
+    </a>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="card empty-state"><i class="ti ti-confetti"></i>No jobs scheduled for today.</div>
+  {% endfor %}
+</div>
+
+<h4 style="margin-bottom:10px;font-size:14px;">Coming up</h4>
+<div class="stack">
+  {% for v in upcoming_visits %}
+  {% set dot_color = {'Scheduled':'var(--warn)','In Progress':'var(--info)','Completed':'var(--success)','Cancelled':'var(--ink-soft)','Rescheduled':'#785ab4'}[v['status']] %}
+  {% set sc = {'Scheduled':'amber','In Progress':'blue','Completed':'green','Cancelled':'gray','Rescheduled':'purple'}[v['status']] %}
+  <div onclick="location.href='{{ url_for('scheduling_bp.view_visit', visit_id=v['id']) }}'" class="card row" style="padding:13px 15px;gap:12px;cursor:pointer;">
+    <div style="text-align:center;min-width:44px;flex-shrink:0;">
+      <div style="font-size:10.5px;color:var(--ink-soft);font-weight:700;">{{ v['scheduled_date'][5:7] }}/{{ v['scheduled_date'][8:10] }}</div>
+      <div style="margin:4px auto 0;width:10px;height:10px;border-radius:50%;background:{{ dot_color }};"></div>
+    </div>
+    <div style="flex:1;min-width:0;">
+      <strong style="font-size:14px;">{{ v['client_name'] }}</strong>
+      <div class="muted" style="font-size:11.5px;">{{ v['client_area'] or 'No area set' }}</div>
+    </div>
+    {% if v['status'] == 'Completed' and v['job_card_id'] %}
+    <a href="{{ url_for('jobcards_bp.pdf', job_card_id=v['job_card_id']) }}" target="_blank" onclick="event.stopPropagation();" class="btn btn-ghost btn-sm"><i class="ti ti-printer"></i></a>
+    {% endif %}
+    <span class="badge badge-{{ sc }}">{{ v['status'] }}</span>
+  </div>
+  {% else %}
+  <div class="card empty-state" style="padding:24px;"><i class="ti ti-calendar-off"></i>Nothing else on the books.</div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ static_url('js/offline-queue.js') }}"></script>
+<script>
+function updateConnBadge() {
+  document.getElementById('onlineBadge').style.display = navigator.onLine ? 'inline-flex' : 'none';
+  document.getElementById('offlineBadge').style.display = navigator.onLine ? 'none' : 'inline-flex';
+}
+
+async function refreshPendingUI() {
+  const items = await getPendingJobCards().catch(() => []);
+  const badge = document.getElementById('pendingBadge');
+  if (items.length > 0) {
+    badge.style.display = 'inline-flex';
+    badge.textContent = items.length;
+  } else {
+    badge.style.display = 'none';
+  }
+  const pendingVisitIds = new Set(items.map((i) => i.visitId));
+  document.querySelectorAll('#todayVisits [data-visit-id]').forEach((card) => {
+    const vid = card.dataset.visitId;
+    const statusBadge = document.getElementById('statusBadge-' + vid);
+    if (pendingVisitIds.has(vid) && statusBadge) {
+      statusBadge.textContent = 'Pending Sync';
+      statusBadge.className = 'badge badge-amber';
+    }
+  });
+}
+
+async function manualSync() {
+  if (!navigator.onLine) {
+    showToast("You're still offline — nothing to sync yet.", 'error');
+    return;
+  }
+  const btn = document.getElementById('syncBtnLabel');
+  btn.textContent = 'Syncing…';
+  const result = await syncPendingJobCards();
+  btn.textContent = 'Sync Now';
+  if (result.synced > 0) {
+    showToast(`Synced ${result.synced} job card(s).`, 'success');
+  }
+  if (result.authExpired) {
+    showToast('Your session expired — log in again to finish syncing.', 'error');
+  } else if (result.failed > 0 && result.synced === 0) {
+    showToast('Still offline — will keep trying.', 'error');
+  }
+  refreshPendingUI();
+}
+
+// Pre-cache today's job card form pages (while we have a connection) so
+// they can still be opened and filled out if connectivity drops later.
+function precacheTodaysForms() {
+  if (!('caches' in window) || !navigator.onLine) return;
+  const urls = Array.from(document.querySelectorAll('[data-cache-url]')).map(el => el.dataset.cacheUrl);
+  if (!urls.length) return;
+  caches.open('pct-crm-forms-v1').then(cache => {
+    urls.forEach(url => {
+      fetch(url).then(resp => { if (resp.ok) cache.put(url, resp.clone()); }).catch(() => {});
+    });
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  updateConnBadge();
+  refreshPendingUI();
+  precacheTodaysForms();
+  if (navigator.onLine) manualSync();
+});
+window.addEventListener('online', () => { updateConnBadge(); manualSync(); });
+window.addEventListener('offline', updateConnBadge);
+</script>
+{% endblock %}

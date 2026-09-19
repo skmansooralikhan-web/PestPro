@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Scheduling — Agenda{% endblock %}
+{% block page_title %}Scheduling{% endblock %}
+
+{% block content %}
+<div class="row between" style="margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+  <div class="tabs" style="margin-bottom:0;border-bottom:none;">
+    <a href="{{ url_for('scheduling_bp.week_view') }}">Week</a>
+    <a href="{{ url_for('scheduling_bp.month_view') }}">Month</a>
+    <a href="{{ url_for('scheduling_bp.agenda_view') }}" class="active">Agenda</a>
+  </div>
+  <form method="GET" class="row wrap">
+    <select name="tech" onchange="this.form.submit()">
+      <option value="">All technicians</option>
+      {% for t in techs %}<option value="{{ t }}" {{ 'selected' if tech_filter==t }}>{{ t }}</option>{% endfor %}
+    </select>
+    <select name="status" onchange="this.form.submit()">
+      <option value="">All statuses</option>
+      {% for s in ['Scheduled','In Progress','Completed','Cancelled','Rescheduled'] %}
+      <option value="{{ s }}" {{ 'selected' if status_filter==s }}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+<div class="stack">
+  {% for d, visits in grouped.items() %}
+  <div class="card">
+    <div class="card-header"><h3>{{ d }}</h3></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Time</th><th>Client</th><th>Area</th><th>Technician</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for v in visits %}
+          <tr onclick="location.href='{{ url_for('scheduling_bp.view_visit', visit_id=v['id']) }}'" style="cursor:pointer;">
+            <td>{{ v['time_slot'] or '—' }}</td>
+            <td><strong>{{ v['client_name'] }}</strong></td>
+            <td>{{ v['client_area'] or '—' }}</td>
+            <td>{{ v['tech_name'] or '—' }}</td>
+            <td><span class="badge badge-{{ status_colors[v['status']] }}">{{ v['status'] }}</span></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <div class="card empty-state"><i class="ti ti-calendar-off"></i>No visits in this range.</div>
+  {% endfor %}
+</div>
+{% endblock %}

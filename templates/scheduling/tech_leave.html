@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Technician Leave{% endblock %}
+{% block page_title %}Technician Leave{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:600px;margin-bottom:16px;">
+  <div class="card-header"><h3>Record Leave</h3></div>
+  <form method="POST" action="{{ url_for('scheduling_bp.new_tech_leave') }}">
+    <div class="form-grid cols-2">
+      <div class="field">
+        <label>Technician *</label>
+        <select name="tech_name" required>
+          <option value="">— Select —</option>
+          {% for t in techs %}
+          <option value="{{ t }}">{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field"></div>
+      <div class="field">
+        <label>Start date *</label>
+        <input type="date" name="start_date" required>
+      </div>
+      <div class="field">
+        <label>End date *</label>
+        <input type="date" name="end_date" required>
+      </div>
+      <div class="field span-2">
+        <label>Reason</label>
+        <input type="text" name="reason" placeholder="e.g. sick leave, personal">
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary" style="margin-top:10px;"><i class="ti ti-calendar-plus"></i> Record Leave</button>
+  </form>
+</div>
+
+<div class="card" style="max-width:600px;">
+  <div class="card-header"><h3>Upcoming &amp; Current Leave</h3></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Technician</th><th>From</th><th>To</th><th>Reason</th><th></th></tr></thead>
+      <tbody>
+      {% for l in leave_entries %}
+        <tr>
+          <td>{{ l['tech_name'] }}</td>
+          <td>{{ l['start_date'] }}</td>
+          <td>{{ l['end_date'] }}</td>
+          <td>{{ l['reason'] or '—' }}</td>
+          <td>
+            <form method="POST" action="{{ url_for('scheduling_bp.delete_tech_leave', leave_id=l['id']) }}" data-confirm="Remove this leave entry?">
+              <button type="submit" class="btn btn-ghost btn-sm btn-icon"><i class="ti ti-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="5" class="muted" style="text-align:center;padding:20px;">No upcoming leave recorded.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if past_entries %}
+<div class="card" style="max-width:600px;margin-top:16px;">
+  <div class="card-header"><h3>Past Leave</h3></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Technician</th><th>From</th><th>To</th><th>Reason</th></tr></thead>
+      <tbody>
+      {% for l in past_entries %}
+        <tr><td>{{ l['tech_name'] }}</td><td>{{ l['start_date'] }}</td><td>{{ l['end_date'] }}</td><td>{{ l['reason'] or '—' }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

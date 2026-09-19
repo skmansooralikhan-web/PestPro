@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Renew AMC{% endblock %}
+{% block page_title %}Renew AMC Contract{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:520px;">
+  <p class="muted" style="font-size:12.5px;margin-bottom:14px;">
+    Renewing <strong>{{ contract['contract_number'] }}</strong> for this client. A new contract
+    will be created and the old one marked as Renewed.
+  </p>
+  <form method="POST" class="stack">
+    <div class="form-grid">
+      <div class="field">
+        <label>New start date</label>
+        <input type="date" name="start_date" value="{{ suggested_start }}">
+      </div>
+      <div class="field">
+        <label>New end date</label>
+        <input type="date" name="end_date" value="{{ suggested_end }}">
+      </div>
+      <div class="field">
+        <label>Amount (₹)</label>
+        <input type="number" step="0.01" name="amount" value="{{ contract['amount'] }}">
+      </div>
+      <div class="field">
+        <label>Visit count</label>
+        <input type="number" name="visit_count" value="{{ contract['visit_count'] }}">
+      </div>
+      <div class="field">
+        <label>Billing frequency</label>
+        <select name="billing_frequency">
+          {% for f in ['Monthly','Quarterly','Annually'] %}
+          <option value="{{ f }}" {{ 'selected' if contract['billing_frequency']==f or (not contract['billing_frequency'] and f=='Annually') }}>{{ f }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <div class="checkbox-row">
+          <input type="checkbox" name="auto_invoice" id="auto_invoice" {{ 'checked' if contract['auto_invoice'] }}>
+          <label for="auto_invoice">Auto-generate invoices each cycle</label>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Notes</label>
+      <textarea name="notes"></textarea>
+    </div>
+    <div class="row">
+      <button type="submit" class="btn btn-primary"><i class="ti ti-refresh"></i> Renew Contract</button>
+      <a href="{{ url_for('amc_bp.index') }}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
